@@ -3,7 +3,7 @@ let uploadedVideos = [];          // { id, name, url, size, date }
 let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
-let apiBaseUrl = 'http://localhost:4000'; // default, can be changed in settings
+let apiBaseUrl = 'http://localhost:4000'; // default, will be overwritten by localStorage
 
 // DOM Elements
 const views = document.querySelectorAll('.content-view');
@@ -155,6 +155,8 @@ function renderLibrary() {
                 <small>${video.size}</small>
             </div>
         `;
+        // Null check to prevent errors
+        if (!item) return;
         item.addEventListener('click', () => {
             // Select this video for streaming (store selected ID)
             // For simplicity, we just preview
@@ -281,6 +283,7 @@ saveSettingsBtn.addEventListener('click', () => {
 
 // Load settings from localStorage
 apiUrlInput.value = localStorage.getItem('apiUrl') || 'http://localhost:4000';
+apiBaseUrl = localStorage.getItem('apiUrl') || 'http://localhost:4000'; // THIS LINE IS CRITICAL
 if (localStorage.getItem('resolution')) defaultResolution.value = localStorage.getItem('resolution');
 if (localStorage.getItem('bitrate')) defaultBitrate.value = localStorage.getItem('bitrate');
 if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem('encoder');
@@ -291,8 +294,7 @@ toggleThemeBtn.addEventListener('click', () => {
 });
 
 // ==================== Initialization ====================
-// Load any previously uploaded videos from localStorage? Not needed for demo.
-// But we can have some mock videos
+// Add a mock video for demonstration
 uploadedVideos.push({
     id: 1,
     name: 'sample.mp4',
