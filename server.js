@@ -24,21 +24,21 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname));
     }
 });
-const upload = multer({ 
+const upload = multer({
     storage,
     limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB
 });
 
 // In-memory store for active streams
-let activeStream = null; // { process, youtubeUrl, facebookUrl }
+let activeStream = null; // { processes, ... }
 
 // ========== API Endpoints ==========
 
 // Upload video
 app.post('/upload-video', upload.single('video'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    res.json({ 
-        message: 'Upload successful', 
+    res.json({
+        message: 'Upload successful',
         id: req.file.filename,
         path: req.file.path
     });
@@ -52,71 +52,79 @@ app.get('/videos', (req, res) => {
     });
 });
 
-// Start stream
+// Start stream – accepts custom RTMP URLs
 app.post('/start-stream', (req, res) => {
-    const { title, description, privacy, youtubeKey, facebookKey } = req.body;
-    
-    // Validate required keys
-    if (!youtubeKey && !facebookKey) {
-        return res.status(400).json({ error: 'At least one stream key is required' });
-    }
+    const {
+        title, description, privacy,
+        youtubeRtmpPrimary, youtubeRtmpBackup, youtubeKey,
+        facebookRtmp, facebookKey
+    } = req.body;
 
-    // In a real app you'd select a video file from the library.
-    // For demo, we use a sample video path or the latest uploaded.
+    // Find a video to stream (use the most recent uploaded)
     const videosDir = 'uploads';
     let videoFile = null;
     if (fs.existsSync(videosDir)) {
         const files = fs.readdirSync(videosDir);
-        if (files.length > 0) videoFile = path.join(videosDir, files[0]); // use first video
+        if (files.length > 0) videoFile = path.join(videosDir, files[files.length - 1]); // latest
     }
     if (!videoFile) {
         return res.status(400).json({ error: 'No video found. Upload a video first.' });
     }
 
-    // Build RTMP URLs
-    const rtmpUrlYoutube = `rtmp://a.rtmp.youtube.com/live2/${youtubeKey}`;
-    const rtmpUrlFacebook = `rtmp://live-api-s.facebook.com:80/rtmp/${facebookKey}`;
-
-    // FFmpeg command to stream to multiple destinations
-    // This example streams the video file to both platforms simultaneously
-    const ffmpegArgs = [
-        '-re',                     // read input at native frame rate
-        '-i', videoFile,            // input file
-        '-c:v', 'libx264',          // video codec
-        '-preset', 'veryfast',
-        '-b:v', '2500k',            // bitrate (could be from settings)
-        '-c:a', 'aac',
-        '-f', 'flv',                 // output format for RTMP
-    ];
-
-    // If YouTube key provided, add output
-    const outputs = [];
-    if (youtubeKey) outputs.push(rtmpUrlYoutube);
-    if (facebookKey) outputs.push(rtmpUrlFacebook);
-
-    // For each output, we need to duplicate the stream.
-    // Use the tee muxer or run multiple ffmpeg processes.
-    // Here we'll spawn separate processes for simplicity.
-    if (outputs.length === 0) return res.status(400).json({ error: 'No valid stream keys' });
-
-    // Start a child process for each destination
     const processes = [];
-    outputs.forEach((url, index) => {
-        const proc = spawn('ffmpeg', [
+
+    // YouTube stream(s)
+    if (youtubeKey && youtubeRtmpPrimary) {
+        // Primary
+        const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
+        const procPrimary = spawn('ffmpeg', [
             '-re', '-i', videoFile,
             '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
             '-c:a', 'aac',
             '-f', 'flv',
-            url
+            primaryUrl
         ]);
-        proc.stderr.on('data', (data) => console.log(`FFmpeg[${index}]: ${data}`));
-        proc.on('close', (code) => console.log(`FFmpeg[${index}] exited with code ${code}`));
-        processes.push(proc);
-    });
+        procPrimary.stderr.on('data', (data) => console.log(`FFmpeg YouTube Primary: ${data}`));
+        procPrimary.on('close', (code) => console.log(`FFmpeg YouTube Primary exited with code ${code}`));
+        processes.push(procPrimary);
 
-    activeStream = { processes, youtubeKey, facebookKey, title, description, privacy };
+        // Backup if provided
+        if (youtubeRtmpBackup) {
+            const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
+            const procBackup = spawn('ffmpeg', [
+                '-re', '-i', videoFile,
+                '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
+                '-c:a', 'aac',
+                '-f', 'flv',
+                backupUrl
+            ]);
+            procBackup.stderr.on('data', (data) => console.log(`FFmpeg YouTube Backup: ${data}`));
+            procBackup.on('close', (code) => console.log(`FFmpeg YouTube Backup exited with code ${code}`));
+            processes.push(procBackup);
+        }
+    }
 
-    res.json({ message: 'Stream started', destinations: outputs.length });
+    // Facebook stream
+    if (facebookKey && facebookRtmp) {
+        const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
+        const procFb = spawn('ffmpeg', [
+            '-re', '-i', videoFile,
+            '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
+            '-c:a', 'aac',
+            '-f', 'flv',
+            fbUrl
+        ]);
+        procFb.stderr.on('data', (data) => console.log(`FFmpeg Facebook: ${data}`));
+        procFb.on('close', (code) => console.log(`FFmpeg Facebook exited with code ${code}`));
+        processes.push(procFb);
+    }
+
+    if (processes.length === 0) {
+        return res.status(400).json({ error: 'No valid stream destinations configured' });
+    }
+
+    activeStream = { processes, title, description, privacy };
+    res.json({ message: 'Stream started', destinations: processes.length });
 });
 
 // Stop stream
@@ -137,10 +145,8 @@ app.get('/stream-status', (req, res) => {
     }
 });
 
-// Mock preview stream (for frontend monitor)
+// Mock preview (optional)
 app.get('/preview', (req, res) => {
-    // In a real system you'd serve a live HLS stream or similar.
-    // For demo, we just return a sample video.
     const sample = path.join(__dirname, 'uploads', 'sample.mp4');
     if (fs.existsSync(sample)) {
         res.sendFile(sample);
