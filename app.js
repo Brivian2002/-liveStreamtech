@@ -110,8 +110,12 @@ async function handleFileUpload(file) {
     formData.append('video', file);
 
     try {
+        // CRITICAL FIX: Add ngrok-skip-browser-warning header to bypass interstitial page
         const response = await fetch(`${apiBaseUrl}/upload-video`, {
             method: 'POST',
+            headers: {
+                'ngrok-skip-browser-warning': 'true'   // This is the key!
+            },
             body: formData
         });
 
@@ -138,9 +142,6 @@ async function handleFileUpload(file) {
         alert('Upload failed: ' + error.message);
         uploadProgress.style.display = 'none';
     }
-
-    // Simulate progress (since fetch doesn't give progress easily)
-    // In a real app you'd use XMLHttpRequest for progress tracking
 }
 
 function renderLibrary() {
@@ -181,7 +182,10 @@ startBtn.addEventListener('click', async () => {
     try {
         const response = await fetch(`${apiBaseUrl}/start-stream`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'   // Also add here for safety
+            },
             body: JSON.stringify(payload)
         });
         if (!response.ok) throw new Error('Failed to start stream');
@@ -198,7 +202,10 @@ startBtn.addEventListener('click', async () => {
 
 stopBtn.addEventListener('click', async () => {
     try {
-        await fetch(`${apiBaseUrl}/stop-stream`, { method: 'POST' });
+        await fetch(`${apiBaseUrl}/stop-stream`, { 
+            method: 'POST',
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
         streamActive = false;
         updateStreamUI(false);
         stopTimer();
@@ -271,8 +278,9 @@ addHistoryEntry('Game Stream', '2025-03-14 20:00', '02:30:45', 'YouTube', 'Compl
 saveSettingsBtn.addEventListener('click', () => {
     const newApi = apiUrlInput.value.trim();
     if (newApi) {
-        apiBaseUrl = newApi;
-        localStorage.setItem('apiUrl', newApi);
+        // Remove trailing slash if present to avoid double slashes in requests
+        apiBaseUrl = newApi.replace(/\/$/, '');
+        localStorage.setItem('apiUrl', apiBaseUrl);
     }
     // Save other settings
     localStorage.setItem('resolution', defaultResolution.value);
@@ -282,8 +290,15 @@ saveSettingsBtn.addEventListener('click', () => {
 });
 
 // Load settings from localStorage
-apiUrlInput.value = localStorage.getItem('apiUrl') || 'http://localhost:4000';
-apiBaseUrl = localStorage.getItem('apiUrl') || 'http://localhost:4000'; // THIS LINE IS CRITICAL
+const savedApiUrl = localStorage.getItem('apiUrl');
+if (savedApiUrl) {
+    apiUrlInput.value = savedApiUrl;
+    apiBaseUrl = savedApiUrl.replace(/\/$/, ''); // ensure no trailing slash
+} else {
+    apiUrlInput.value = 'http://localhost:4000';
+    apiBaseUrl = 'http://localhost:4000';
+}
+
 if (localStorage.getItem('resolution')) defaultResolution.value = localStorage.getItem('resolution');
 if (localStorage.getItem('bitrate')) defaultBitrate.value = localStorage.getItem('bitrate');
 if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem('encoder');
