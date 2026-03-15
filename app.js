@@ -3,7 +3,7 @@ let uploadedVideos = [];          // { id, name, url, size, date }
 let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
-let apiBaseUrl = 'http://localhost:4000'; // default, will be overwritten by localStorage
+let apiBaseUrl = 'http://localhost:4000'; // default, overwritten by localStorage
 
 // DOM Elements
 const views = document.querySelectorAll('.content-view');
@@ -11,6 +11,8 @@ const navItems = document.querySelectorAll('.nav-item');
 const pageTitle = document.getElementById('page-title');
 const globalStatusDot = document.querySelector('.stream-status .status-dot');
 const globalStatusText = document.querySelector('.stream-status span:last-child');
+const videoCountSpan = document.getElementById('videoCount');
+const totalStreamTimeSpan = document.getElementById('totalStreamTime');
 
 // Upload elements
 const dropArea = document.getElementById('dropArea');
@@ -52,22 +54,25 @@ const apiUrlInput = document.getElementById('apiUrl');
 const saveSettingsBtn = document.getElementById('saveSettings');
 const toggleThemeBtn = document.getElementById('toggleTheme');
 
+// ==================== Helper Functions ====================
+function updateStats() {
+    videoCountSpan.textContent = uploadedVideos.length;
+    // total stream time could be fetched from backend, but for now keep static
+}
+
 // ==================== Navigation ====================
 navItems.forEach(item => {
     item.addEventListener('click', (e) => {
         e.preventDefault();
         const viewId = item.dataset.view;
-        // Update active nav
         navItems.forEach(nav => nav.classList.remove('active'));
         item.classList.add('active');
-        // Show corresponding view
         views.forEach(view => view.classList.remove('active'));
         document.getElementById(`view-${viewId}`).classList.add('active');
         pageTitle.textContent = item.querySelector('span').textContent;
     });
 });
 
-// Settings button in navbar
 document.getElementById('settingsBtn').addEventListener('click', () => {
     navItems.forEach(nav => nav.classList.remove('active'));
     document.querySelector('[data-view="settings"]').classList.add('active');
@@ -97,48 +102,62 @@ fileInput.addEventListener('change', (e) => {
 });
 
 async function handleFileUpload(file) {
-    // Validate file type
     const validTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
     if (!validTypes.includes(file.type)) {
         alert('Unsupported file type. Please upload MP4, MOV, or WEBM.');
         return;
     }
 
-    // Show progress bar
     uploadProgress.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressStatus.textContent = 'Uploading... 0%';
+
     const formData = new FormData();
     formData.append('video', file);
 
+    // Simulate progress (since fetch doesn't provide it)
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += 5;
+        if (progress > 90) clearInterval(progressInterval);
+        progressFill.style.width = progress + '%';
+        progressStatus.textContent = `Uploading... ${progress}%`;
+    }, 200);
+
     try {
-        // CRITICAL FIX: Add ngrok-skip-browser-warning header to bypass interstitial page
         const response = await fetch(`${apiBaseUrl}/upload-video`, {
             method: 'POST',
             headers: {
-                'ngrok-skip-browser-warning': 'true'   // This is the key!
+                'ngrok-skip-browser-warning': 'true'
             },
             body: formData
         });
 
+        clearInterval(progressInterval);
+        progressFill.style.width = '100%';
+        progressStatus.textContent = 'Upload complete!';
+
         if (!response.ok) throw new Error('Upload failed');
 
         const result = await response.json();
-        // Add to local library
-        const videoUrl = URL.createObjectURL(file); // temporary for preview
+        const videoUrl = URL.createObjectURL(file);
         uploadedVideos.push({
             id: result.id || Date.now(),
             name: file.name,
             url: videoUrl,
-            size: (file.size / (1024*1024)).toFixed(2) + ' MB',
+            size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
             date: new Date().toLocaleString()
         });
         renderLibrary();
-        // Show preview
+        updateStats();
+
         previewPlayer.src = videoUrl;
         videoPreview.style.display = 'block';
-        metaInfo.innerHTML = `<p><strong>${file.name}</strong> (${(file.size/1024/1024).toFixed(2)} MB)</p>`;
-        // Hide progress
+        metaInfo.innerHTML = `<p><strong>${file.name}</strong> (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>`;
+
         uploadProgress.style.display = 'none';
     } catch (error) {
+        clearInterval(progressInterval);
         alert('Upload failed: ' + error.message);
         uploadProgress.style.display = 'none';
     }
@@ -146,22 +165,23 @@ async function handleFileUpload(file) {
 
 function renderLibrary() {
     libraryGrid.innerHTML = '';
+    if (uploadedVideos.length === 0) {
+        libraryGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #888;">No videos uploaded yet.</p>';
+        return;
+    }
     uploadedVideos.forEach(video => {
         const item = document.createElement('div');
         item.className = 'library-item';
         item.innerHTML = `
             <video src="${video.url}" muted></video>
             <div class="info">
-                <p>${video.name.substring(0,20)}${video.name.length>20?'...':''}</p>
+                <p>${video.name.substring(0, 20)}${video.name.length > 20 ? '...' : ''}</p>
                 <small>${video.size}</small>
             </div>
         `;
-        // Null check to prevent errors
-        if (!item) return;
         item.addEventListener('click', () => {
-            // Select this video for streaming (store selected ID)
-            // For simplicity, we just preview
             previewPlayer.src = video.url;
+            // Optionally switch to upload view to show preview
         });
         libraryGrid.appendChild(item);
     });
@@ -169,22 +189,25 @@ function renderLibrary() {
 
 // ==================== Live Stream Control ====================
 startBtn.addEventListener('click', async () => {
-    // Collect data
+    if (!ytKey.value && !fbKey.value) {
+        alert('Enter at least one stream key.');
+        return;
+    }
+
     const payload = {
-        title: streamTitle.value,
+        title: streamTitle.value || 'Untitled Stream',
         description: streamDesc.value,
         privacy: privacy.value,
         youtubeKey: ytKey.value,
-        facebookKey: fbKey.value,
-        // In a real app you'd also send the selected video ID
+        facebookKey: fbKey.value
     };
 
     try {
         const response = await fetch(`${apiBaseUrl}/start-stream`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'   // Also add here for safety
+                'ngrok-skip-browser-warning': 'true'
             },
             body: JSON.stringify(payload)
         });
@@ -193,8 +216,8 @@ startBtn.addEventListener('click', async () => {
         streamActive = true;
         updateStreamUI(true);
         startTimer();
-        // Simulate preview (in real app you'd get a stream URL)
-        livePreview.src = 'http://localhost:4000/preview'; // mock
+        // Optionally poll status
+        pollStreamStatus();
     } catch (err) {
         alert('Start stream error: ' + err.message);
     }
@@ -202,7 +225,7 @@ startBtn.addEventListener('click', async () => {
 
 stopBtn.addEventListener('click', async () => {
     try {
-        await fetch(`${apiBaseUrl}/stop-stream`, { 
+        await fetch(`${apiBaseUrl}/stop-stream`, {
             method: 'POST',
             headers: { 'ngrok-skip-browser-warning': 'true' }
         });
@@ -216,7 +239,8 @@ stopBtn.addEventListener('click', async () => {
 });
 
 pauseBtn.addEventListener('click', () => {
-    // Implement pause if needed
+    // Pause functionality not implemented in backend
+    alert('Pause not yet supported');
 });
 
 function updateStreamUI(active) {
@@ -228,13 +252,6 @@ function updateStreamUI(active) {
         startBtn.disabled = true;
         stopBtn.disabled = false;
         pauseBtn.disabled = false;
-        // Simulate bitrate changes
-        setInterval(() => {
-            if (streamActive) {
-                bitrateSpan.textContent = Math.floor(2000 + Math.random()*500) + ' kbps';
-                latencySpan.textContent = (Math.random()*2 + 1).toFixed(1) + 's';
-            }
-        }, 3000);
     } else {
         globalStatusDot.className = 'status-dot offline';
         globalStatusText.textContent = 'Offline';
@@ -254,7 +271,7 @@ function startTimer() {
         const hrs = Math.floor(streamSeconds / 3600);
         const mins = Math.floor((streamSeconds % 3600) / 60);
         const secs = streamSeconds % 60;
-        durationSpan.textContent = `${hrs.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+        durationSpan.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }, 1000);
 }
 
@@ -263,37 +280,71 @@ function stopTimer() {
     durationSpan.textContent = '00:00:00';
 }
 
-// ==================== History (mock) ====================
+// Poll stream status every 5 seconds to update UI
+async function pollStreamStatus() {
+    if (!streamActive) return;
+    try {
+        const response = await fetch(`${apiBaseUrl}/stream-status`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const data = await response.json();
+        if (!data.active) {
+            // Stream ended on backend
+            streamActive = false;
+            updateStreamUI(false);
+            stopTimer();
+            livePreview.src = '';
+        } else {
+            // Update preview stats with mock data (backend could provide real stats)
+            bitrateSpan.textContent = Math.floor(2000 + Math.random() * 500) + ' kbps';
+            latencySpan.textContent = (Math.random() * 2 + 1).toFixed(1) + 's';
+            setTimeout(pollStreamStatus, 5000);
+        }
+    } catch {
+        // Ignore polling errors, just retry
+        setTimeout(pollStreamStatus, 5000);
+    }
+}
+
+// ==================== History ====================
 function addHistoryEntry(title, date, duration, platform, status) {
     const row = document.createElement('tr');
     row.innerHTML = `<td>${title}</td><td>${date}</td><td>${duration}</td><td>${platform}</td><td>${status}</td>`;
     historyBody.appendChild(row);
 }
 
-// Pre-populate with some mock history
-addHistoryEntry('Morning Show', '2025-03-15 10:30', '01:15:22', 'YouTube, FB', 'Completed');
-addHistoryEntry('Game Stream', '2025-03-14 20:00', '02:30:45', 'YouTube', 'Completed');
+// Load history from localStorage if available
+function loadHistory() {
+    const history = JSON.parse(localStorage.getItem('streamHistory') || '[]');
+    history.forEach(entry => addHistoryEntry(entry.title, entry.date, entry.duration, entry.platform, entry.status));
+}
+
+function saveHistoryEntry(entry) {
+    const history = JSON.parse(localStorage.getItem('streamHistory') || '[]');
+    history.push(entry);
+    localStorage.setItem('streamHistory', JSON.stringify(history));
+    addHistoryEntry(entry.title, entry.date, entry.duration, entry.platform, entry.status);
+}
 
 // ==================== Settings ====================
 saveSettingsBtn.addEventListener('click', () => {
     const newApi = apiUrlInput.value.trim();
     if (newApi) {
-        // Remove trailing slash if present to avoid double slashes in requests
+        // Remove trailing slash if present
         apiBaseUrl = newApi.replace(/\/$/, '');
         localStorage.setItem('apiUrl', apiBaseUrl);
     }
-    // Save other settings
     localStorage.setItem('resolution', defaultResolution.value);
     localStorage.setItem('bitrate', defaultBitrate.value);
     localStorage.setItem('encoder', defaultEncoder.value);
     alert('Settings saved');
 });
 
-// Load settings from localStorage
+// Load settings
 const savedApiUrl = localStorage.getItem('apiUrl');
 if (savedApiUrl) {
     apiUrlInput.value = savedApiUrl;
-    apiBaseUrl = savedApiUrl.replace(/\/$/, ''); // ensure no trailing slash
+    apiBaseUrl = savedApiUrl.replace(/\/$/, '');
 } else {
     apiUrlInput.value = 'http://localhost:4000';
     apiBaseUrl = 'http://localhost:4000';
@@ -305,16 +356,11 @@ if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem
 
 toggleThemeBtn.addEventListener('click', () => {
     document.body.classList.toggle('light-theme');
-    // Simple theme toggle - you can define light theme in CSS
+    // For a light theme, you would define additional CSS rules
 });
 
 // ==================== Initialization ====================
-// Add a mock video for demonstration
-uploadedVideos.push({
-    id: 1,
-    name: 'sample.mp4',
-    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    size: '150 MB',
-    date: new Date().toLocaleString()
-});
+updateStats();
+loadHistory();
+// No mock videos – start with empty library
 renderLibrary();
