@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveStream Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-broadcast-tower"></i>
+                <span>LiveStream</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" data-view="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="#" class="nav-item" data-view="upload"><i class="fas fa-cloud-upload-alt"></i> Upload Video</a>
+                <a href="#" class="nav-item" data-view="live"><i class="fas fa-video"></i> Live Control</a>
+                <a href="#" class="nav-item" data-view="history"><i class="fas fa-history"></i> Stream History</a>
+                <a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> Settings</a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Creator</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Navbar -->
+            <header class="navbar">
+                <div class="navbar-left">
+                    <h2 id="page-title">Dashboard</h2>
+                </div>
+                <div class="navbar-right">
+                    <div class="stream-status" id="globalStreamStatus">
+                        <span class="status-dot offline"></span>
+                        <span>Offline</span>
+                    </div>
+                    <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
+                    <div class="profile-icon">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dynamic Content Views -->
+            <div class="content-view active" id="view-dashboard">
+                <h2>Welcome back, Creator</h2>
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <i class="fas fa-video"></i>
+                        <div>
+                            <h3>12</h3>
+                            <p>Videos Uploaded</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <h3>8</h3>
+                            <p>Hours Streamed</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-users"></i>
+                        <div>
+                            <h3>1.2k</h3>
+                            <p>Total Views</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="video-library">
+                    <h3>Your Video Library</h3>
+                    <div class="library-grid" id="videoLibraryGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-view" id="view-upload">
+                <h2>Upload Video</h2>
+                <div class="upload-area" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag & drop a video file or <span class="browse-text">browse</span></p>
+                    <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/webm" hidden>
+                    <p class="supported-formats">Supported: MP4, MOV, WEBM (max 2GB)</p>
+                </div>
+                <div class="upload-progress" id="uploadProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%;"></div>
+                    </div>
+                    <p id="progressStatus">Uploading... 0%</p>
+                </div>
+                <div class="video-preview" id="videoPreview" style="display: none;">
+                    <video id="previewPlayer" controls></video>
+                    <div class="meta-info" id="metaInfo"></div>
+                </div>
+            </div>
+
+            <div class="content-view" id="view-live">
+                <h2>Live Stream Control</h2>
+                <div class="live-panel">
+                    <div class="live-left">
+                        <div class="stream-form">
+                            <div class="form-group">
+                                <label>Stream Title</label>
+                                <input type="text" id="streamTitle" placeholder="My Awesome Stream">
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <textarea id="streamDesc" rows="3" placeholder="Stream description..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Privacy</label>
+                                <select id="privacy">
+                                    <option value="public">Public</option>
+                                    <option value="unlisted">Unlisted</option>
+                                    <option value="private">Private</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>YouTube Stream Key</label>
+                                <input type="text" id="ytKey" placeholder="xxxx-xxxx-xxxx">
+                            </div>
+                            <div class="form-group">
+                                <label>Facebook Stream Key</label>
+                                <input type="text" id="fbKey" placeholder="xxxx-xxxx-xxxx">
+                            </div>
+                            <div class="form-actions">
+                                <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start Stream</button>
+                                <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
+                                <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
+                            </div>
+                        </div>
+                        <div class="stream-status-panel">
+                            <h3>Stream Status</h3>
+                            <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
+                            <div class="status-item"><span>Connection:</span> <span id="connectionStatus">Disconnected</span></div>
+                            <div class="status-item"><span>Bitrate:</span> <span id="bitrate">0 kbps</span></div>
+                            <div class="status-item"><span>Duration:</span> <span id="duration">00:00:00</span></div>
+                        </div>
+                    </div>
+                    <div class="live-right">
+                        <div class="preview-monitor">
+                            <h3>Preview Monitor</h3>
+                            <video id="livePreview" controls></video>
+                            <div class="preview-stats">
+                                <span>Latency: <span id="latency">~2s</span></span>
+                                <span>Frame Rate: <span id="fps">30</span></span>
+                                <span>Resolution: <span id="resolution">1280x720</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-view" id="view-history">
+                <h2>Stream History</h2>
+                <table class="history-table">
+                    <thead>
+                        <tr><th>Title</th><th>Date</th><th>Duration</th><th>Platform</th><th>Status</th></tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="content-view" id="view-settings">
+                <h2>Settings</h2>
+                <div class="settings-group">
+                    <h3>Stream Defaults</h3>
+                    <label>Resolution</label>
+                    <select id="defaultResolution">
+                        <option>1920x1080</option>
+                        <option>1280x720</option>
+                        <option>854x480</option>
+                    </select>
+                    <label>Bitrate (kbps)</label>
+                    <input type="number" id="defaultBitrate" value="2500">
+                    <label>Encoder</label>
+                    <select id="defaultEncoder">
+                        <option>libx264</option>
+                        <option>h264_nvenc</option>
+                    </select>
+                </div>
+                <div class="settings-group">
+                    <h3>API Endpoint</h3>
+                    <label>Backend URL</label>
+                    <input type="text" id="apiUrl" placeholder="http://localhost:4000">
+                </div>
+                <div class="settings-group">
+                    <h3>Theme</h3>
+                    <button class="btn" id="toggleTheme">Toggle Dark/Light</button>
+                </div>
+                <button class="btn primary" id="saveSettings">Save Settings</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
