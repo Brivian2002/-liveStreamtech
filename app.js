@@ -1,9 +1,9 @@
 // ==================== State & Globals ====================
-let uploadedVideos = [];          // { id, name, url, size, date }
+let uploadedVideos = [];
 let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
-let apiBaseUrl = 'http://localhost:4000'; // default, overwritten by localStorage
+let apiBaseUrl = 'http://localhost:4000';
 
 // DOM Elements
 const views = document.querySelectorAll('.content-view');
@@ -24,12 +24,18 @@ const videoPreview = document.getElementById('videoPreview');
 const previewPlayer = document.getElementById('previewPlayer');
 const metaInfo = document.getElementById('metaInfo');
 
-// Live elements
+// Live elements – updated with new fields
 const streamTitle = document.getElementById('streamTitle');
 const streamDesc = document.getElementById('streamDesc');
 const privacy = document.getElementById('privacy');
+// YouTube
+const ytRtmpPrimary = document.getElementById('ytRtmpPrimary');
+const ytRtmpBackup = document.getElementById('ytRtmpBackup');
 const ytKey = document.getElementById('ytKey');
+// Facebook
+const fbRtmp = document.getElementById('fbRtmp');
 const fbKey = document.getElementById('fbKey');
+
 const startBtn = document.getElementById('startStreamBtn');
 const stopBtn = document.getElementById('stopStreamBtn');
 const pauseBtn = document.getElementById('pauseStreamBtn');
@@ -57,7 +63,6 @@ const toggleThemeBtn = document.getElementById('toggleTheme');
 // ==================== Helper Functions ====================
 function updateStats() {
     videoCountSpan.textContent = uploadedVideos.length;
-    // total stream time could be fetched from backend, but for now keep static
 }
 
 // ==================== Navigation ====================
@@ -85,14 +90,14 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
 dropArea.addEventListener('click', () => fileInput.click());
 dropArea.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropArea.style.borderColor = '#4a9eff';
+    dropArea.style.borderColor = '#00e5ff';
 });
 dropArea.addEventListener('dragleave', () => {
-    dropArea.style.borderColor = 'rgba(74,158,255,0.3)';
+    dropArea.style.borderColor = 'rgba(0,229,255,0.5)';
 });
 dropArea.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropArea.style.borderColor = 'rgba(74,158,255,0.3)';
+    dropArea.style.borderColor = 'rgba(0,229,255,0.5)';
     const files = e.dataTransfer.files;
     if (files.length) handleFileUpload(files[0]);
 });
@@ -115,7 +120,6 @@ async function handleFileUpload(file) {
     const formData = new FormData();
     formData.append('video', file);
 
-    // Simulate progress (since fetch doesn't provide it)
     let progress = 0;
     const progressInterval = setInterval(() => {
         progress += 5;
@@ -127,9 +131,7 @@ async function handleFileUpload(file) {
     try {
         const response = await fetch(`${apiBaseUrl}/upload-video`, {
             method: 'POST',
-            headers: {
-                'ngrok-skip-browser-warning': 'true'
-            },
+            headers: { 'ngrok-skip-browser-warning': 'true' },
             body: formData
         });
 
@@ -181,7 +183,6 @@ function renderLibrary() {
         `;
         item.addEventListener('click', () => {
             previewPlayer.src = video.url;
-            // Optionally switch to upload view to show preview
         });
         libraryGrid.appendChild(item);
     });
@@ -189,8 +190,9 @@ function renderLibrary() {
 
 // ==================== Live Stream Control ====================
 startBtn.addEventListener('click', async () => {
-    if (!ytKey.value && !fbKey.value) {
-        alert('Enter at least one stream key.');
+    // At least one destination must be configured
+    if ((!ytKey.value || !ytRtmpPrimary.value) && (!fbKey.value || !fbRtmp.value)) {
+        alert('Please fill in at least one complete platform configuration (RTMP URL + Stream Key).');
         return;
     }
 
@@ -198,7 +200,12 @@ startBtn.addEventListener('click', async () => {
         title: streamTitle.value || 'Untitled Stream',
         description: streamDesc.value,
         privacy: privacy.value,
+        // YouTube
+        youtubeRtmpPrimary: ytRtmpPrimary.value,
+        youtubeRtmpBackup: ytRtmpBackup.value,
         youtubeKey: ytKey.value,
+        // Facebook
+        facebookRtmp: fbRtmp.value,
         facebookKey: fbKey.value
     };
 
@@ -216,7 +223,6 @@ startBtn.addEventListener('click', async () => {
         streamActive = true;
         updateStreamUI(true);
         startTimer();
-        // Optionally poll status
         pollStreamStatus();
     } catch (err) {
         alert('Start stream error: ' + err.message);
@@ -239,7 +245,6 @@ stopBtn.addEventListener('click', async () => {
 });
 
 pauseBtn.addEventListener('click', () => {
-    // Pause functionality not implemented in backend
     alert('Pause not yet supported');
 });
 
@@ -280,7 +285,6 @@ function stopTimer() {
     durationSpan.textContent = '00:00:00';
 }
 
-// Poll stream status every 5 seconds to update UI
 async function pollStreamStatus() {
     if (!streamActive) return;
     try {
@@ -289,19 +293,16 @@ async function pollStreamStatus() {
         });
         const data = await response.json();
         if (!data.active) {
-            // Stream ended on backend
             streamActive = false;
             updateStreamUI(false);
             stopTimer();
             livePreview.src = '';
         } else {
-            // Update preview stats with mock data (backend could provide real stats)
             bitrateSpan.textContent = Math.floor(2000 + Math.random() * 500) + ' kbps';
             latencySpan.textContent = (Math.random() * 2 + 1).toFixed(1) + 's';
             setTimeout(pollStreamStatus, 5000);
         }
     } catch {
-        // Ignore polling errors, just retry
         setTimeout(pollStreamStatus, 5000);
     }
 }
@@ -313,7 +314,6 @@ function addHistoryEntry(title, date, duration, platform, status) {
     historyBody.appendChild(row);
 }
 
-// Load history from localStorage if available
 function loadHistory() {
     const history = JSON.parse(localStorage.getItem('streamHistory') || '[]');
     history.forEach(entry => addHistoryEntry(entry.title, entry.date, entry.duration, entry.platform, entry.status));
@@ -330,7 +330,6 @@ function saveHistoryEntry(entry) {
 saveSettingsBtn.addEventListener('click', () => {
     const newApi = apiUrlInput.value.trim();
     if (newApi) {
-        // Remove trailing slash if present
         apiBaseUrl = newApi.replace(/\/$/, '');
         localStorage.setItem('apiUrl', apiBaseUrl);
     }
@@ -340,7 +339,6 @@ saveSettingsBtn.addEventListener('click', () => {
     alert('Settings saved');
 });
 
-// Load settings
 const savedApiUrl = localStorage.getItem('apiUrl');
 if (savedApiUrl) {
     apiUrlInput.value = savedApiUrl;
@@ -356,11 +354,9 @@ if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem
 
 toggleThemeBtn.addEventListener('click', () => {
     document.body.classList.toggle('light-theme');
-    // For a light theme, you would define additional CSS rules
 });
 
 // ==================== Initialization ====================
 updateStats();
 loadHistory();
-// No mock videos – start with empty library
 renderLibrary();
