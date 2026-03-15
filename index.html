@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LiveStream Dashboard</title>
-    <!-- Font Awesome Icons -->
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="app">
-        <!-- Sidebar -->
+        <!-- Sidebar (unchanged) -->
         <aside class="sidebar">
             <div class="logo">
                 <i class="fas fa-broadcast-tower"></i>
@@ -36,7 +36,7 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Top Navbar -->
+            <!-- Top Navbar (unchanged) -->
             <header class="navbar">
                 <div class="navbar-left">
                     <h2 id="page-title">Dashboard</h2>
@@ -53,8 +53,8 @@
                 </div>
             </header>
 
-            <!-- Dynamic Content Views -->
-            <!-- Dashboard -->
+            <!-- Dynamic Views -->
+            <!-- Dashboard (unchanged) -->
             <div class="content-view active" id="view-dashboard">
                 <h2>Welcome back, Creator</h2>
                 <div class="stats-cards">
@@ -83,12 +83,12 @@
                 <div class="video-library">
                     <h3>Your Video Library</h3>
                     <div class="library-grid" id="videoLibraryGrid">
-                        <!-- Dynamically populated -->
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
 
-            <!-- Upload Video -->
+            <!-- Upload Video (unchanged) -->
             <div class="content-view" id="view-upload">
                 <h2>Upload Video</h2>
                 <div class="upload-area" id="dropArea">
@@ -109,12 +109,13 @@
                 </div>
             </div>
 
-            <!-- Live Control -->
+            <!-- Live Control – UPDATED with RTMP URL fields -->
             <div class="content-view" id="view-live">
                 <h2>Live Stream Control</h2>
                 <div class="live-panel">
                     <div class="live-left">
                         <div class="stream-form">
+                            <!-- Common fields -->
                             <div class="form-group">
                                 <label>Stream Title</label>
                                 <input type="text" id="streamTitle" placeholder="My Awesome Stream">
@@ -131,20 +132,45 @@
                                     <option value="private">Private</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label>YouTube Stream Key</label>
-                                <input type="text" id="ytKey" placeholder="xxxx-xxxx-xxxx">
+
+                            <!-- YouTube Settings -->
+                            <div class="platform-section">
+                                <h3><i class="fab fa-youtube"></i> YouTube</h3>
+                                <div class="form-group">
+                                    <label>Primary RTMP URL</label>
+                                    <input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
+                                </div>
+                                <div class="form-group">
+                                    <label>Backup RTMP URL (optional)</label>
+                                    <input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2?backup=1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Stream Key</label>
+                                    <input type="text" id="ytKey" placeholder="xxxx-xxxx-xxxx">
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Facebook Stream Key</label>
-                                <input type="text" id="fbKey" placeholder="xxxx-xxxx-xxxx">
+
+                            <!-- Facebook Settings -->
+                            <div class="platform-section">
+                                <h3><i class="fab fa-facebook"></i> Facebook</h3>
+                                <div class="form-group">
+                                    <label>RTMP URL</label>
+                                    <input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
+                                </div>
+                                <div class="form-group">
+                                    <label>Stream Key</label>
+                                    <input type="text" id="fbKey" placeholder="FB-xxxxxxxxxx">
+                                </div>
                             </div>
+
+                            <!-- Control buttons -->
                             <div class="form-actions">
                                 <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start Stream</button>
                                 <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
                                 <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
                             </div>
                         </div>
+                        <!-- Status panel (unchanged) -->
                         <div class="stream-status-panel">
                             <h3>Stream Status</h3>
                             <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
@@ -167,7 +193,7 @@
                 </div>
             </div>
 
-            <!-- Stream History -->
+            <!-- Stream History (unchanged) -->
             <div class="content-view" id="view-history">
                 <h2>Stream History</h2>
                 <table class="history-table">
@@ -180,7 +206,7 @@
                 </table>
             </div>
 
-            <!-- Settings -->
+            <!-- Settings (unchanged) -->
             <div class="content-view" id="view-settings">
                 <h2>Settings</h2>
                 <div class="settings-group">
@@ -202,7 +228,7 @@
                 <div class="settings-group">
                     <h3>API Endpoint</h3>
                     <label>Backend URL (no trailing slash)</label>
-                    <input type="url" id="apiUrl" placeholder="https://your-ngrok-url.ngrok-free.dev">
+                    <input type="url" id="apiUrl" placeholder="https://your-backend.com">
                 </div>
                 <div class="settings-group">
                     <h3>Theme</h3>
@@ -213,7 +239,6 @@
         </main>
     </div>
 
-    <!-- Main JavaScript -->
     <script src="app.js"></script>
 </body>
 </html>
