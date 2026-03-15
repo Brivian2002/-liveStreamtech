@@ -3,27 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiveStream Dashboard</title>
+    <title>LiveStream Pro</title>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="app">
-        <!-- Sidebar (unchanged) -->
+        <!-- Sidebar (Mac‑inspired) -->
         <aside class="sidebar">
             <div class="logo">
-                <i class="fas fa-broadcast-tower"></i>
-                <span>LiveStream</span>
+                <div class="three-dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+                <span>LiveStream Pro</span>
             </div>
             <nav class="nav-menu">
                 <a href="#" class="nav-item active" data-view="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</a>
-                <a href="#" class="nav-item" data-view="upload"><i class="fas fa-cloud-upload-alt"></i> Upload Video</a>
+                <a href="#" class="nav-item" data-view="upload"><i class="fas fa-cloud-upload-alt"></i> Upload</a>
                 <a href="#" class="nav-item" data-view="live"><i class="fas fa-video"></i> Live Control</a>
-                <a href="#" class="nav-item" data-view="history"><i class="fas fa-history"></i> Stream History</a>
+                <a href="#" class="nav-item" data-view="playlists"><i class="fas fa-list"></i> Playlists</a>
+                <a href="#" class="nav-item" data-view="history"><i class="fas fa-history"></i> History</a>
+                <a href="#" class="nav-item" data-view="analytics"><i class="fas fa-chart-line"></i> Analytics</a>
                 <a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> Settings</a>
             </nav>
             <div class="sidebar-footer">
@@ -36,12 +44,16 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Top Navbar (unchanged) -->
+            <!-- Top Bar with internet speed and status -->
             <header class="navbar">
                 <div class="navbar-left">
                     <h2 id="page-title">Dashboard</h2>
                 </div>
                 <div class="navbar-right">
+                    <div class="speed-meter">
+                        <i class="fas fa-wifi"></i>
+                        <span id="internetSpeed">0 Mbps</span>
+                    </div>
                     <div class="stream-status" id="globalStreamStatus">
                         <span class="status-dot offline"></span>
                         <span>Offline</span>
@@ -54,138 +66,144 @@
             </header>
 
             <!-- Dynamic Views -->
-            <!-- Dashboard (unchanged) -->
+            <!-- Dashboard -->
             <div class="content-view active" id="view-dashboard">
                 <h2>Welcome back, Creator</h2>
                 <div class="stats-cards">
-                    <div class="stat-card">
-                        <i class="fas fa-video"></i>
-                        <div>
-                            <h3 id="videoCount">0</h3>
-                            <p>Videos Uploaded</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-clock"></i>
-                        <div>
-                            <h3 id="totalStreamTime">0</h3>
-                            <p>Hours Streamed</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-users"></i>
-                        <div>
-                            <h3>0</h3>
-                            <p>Total Views</p>
-                        </div>
-                    </div>
+                    <div class="stat-card"><i class="fas fa-video"></i><div><h3 id="videoCount">0</h3><p>Videos</p></div></div>
+                    <div class="stat-card"><i class="fas fa-clock"></i><div><h3 id="totalStreamTime">0</h3><p>Hours</p></div></div>
+                    <div class="stat-card"><i class="fas fa-eye"></i><div><h3 id="totalViews">0</h3><p>Views</p></div></div>
+                    <div class="stat-card"><i class="fas fa-heartbeat"></i><div><h3 id="streamHealth">98%</h3><p>Health</p></div></div>
                 </div>
                 <div class="video-library">
                     <h3>Your Video Library</h3>
-                    <div class="library-grid" id="videoLibraryGrid">
-                        <!-- Populated by JS -->
-                    </div>
+                    <div class="library-grid" id="videoLibraryGrid"></div>
                 </div>
             </div>
 
-            <!-- Upload Video (unchanged) -->
+            <!-- Upload Video (with metadata) -->
             <div class="content-view" id="view-upload">
                 <h2>Upload Video</h2>
                 <div class="upload-area" id="dropArea">
                     <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag & drop a video file or <span class="browse-text">browse</span></p>
+                    <p>Drag & drop or <span class="browse-text">browse</span></p>
                     <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/webm" hidden>
-                    <p class="supported-formats">Supported: MP4, MOV, WEBM (max 2GB)</p>
+                    <p class="supported-formats">MP4, MOV, WEBM (max 2GB)</p>
                 </div>
-                <div class="upload-progress" id="uploadProgress" style="display: none;">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 0%;"></div>
-                    </div>
-                    <p id="progressStatus">Uploading... 0%</p>
+                <div class="upload-progress" id="uploadProgress" style="display:none">
+                    <div class="progress-bar"><div class="progress-fill"></div></div>
+                    <p id="progressStatus">0%</p>
                 </div>
-                <div class="video-preview" id="videoPreview" style="display: none;">
+                <div class="video-preview" id="videoPreview" style="display:none">
                     <video id="previewPlayer" controls></video>
                     <div class="meta-info" id="metaInfo"></div>
+                    <div class="metadata-fields">
+                        <input type="text" id="videoTitle" placeholder="Title">
+                        <input type="text" id="videoTags" placeholder="Tags (comma separated)">
+                        <textarea id="videoDesc" placeholder="Description"></textarea>
+                        <button class="btn primary" id="saveMetadata">Save Metadata</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Live Control – UPDATED with RTMP URL fields -->
+            <!-- Live Control – advanced panel -->
             <div class="content-view" id="view-live">
                 <h2>Live Stream Control</h2>
                 <div class="live-panel">
                     <div class="live-left">
                         <div class="stream-form">
-                            <!-- Common fields -->
+                            <!-- Basic Info -->
                             <div class="form-group">
                                 <label>Stream Title</label>
-                                <input type="text" id="streamTitle" placeholder="My Awesome Stream">
+                                <input type="text" id="streamTitle" placeholder="My Stream">
                             </div>
                             <div class="form-group">
                                 <label>Description</label>
-                                <textarea id="streamDesc" rows="3" placeholder="Stream description..."></textarea>
+                                <textarea id="streamDesc" rows="2"></textarea>
                             </div>
-                            <div class="form-group">
-                                <label>Privacy</label>
-                                <select id="privacy">
-                                    <option value="public">Public</option>
-                                    <option value="unlisted">Unlisted</option>
-                                    <option value="private">Private</option>
-                                </select>
-                            </div>
-
-                            <!-- YouTube Settings -->
-                            <div class="platform-section">
+                            <!-- YouTube Section with custom URLs -->
+                            <div class="platform-section youtube">
                                 <h3><i class="fab fa-youtube"></i> YouTube</h3>
-                                <div class="form-group">
-                                    <label>Primary RTMP URL</label>
-                                    <input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
-                                </div>
-                                <div class="form-group">
-                                    <label>Backup RTMP URL (optional)</label>
-                                    <input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2?backup=1">
-                                </div>
-                                <div class="form-group">
-                                    <label>Stream Key</label>
-                                    <input type="text" id="ytKey" placeholder="xxxx-xxxx-xxxx">
-                                </div>
+                                <label>Stream URL</label>
+                                <input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
+                                <label>Backup Server URL</label>
+                                <input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2?backup=1">
+                                <label>Stream Key</label>
+                                <input type="text" id="ytKey" placeholder="xxxx-xxxx">
+                                <div class="toggle-stream"><input type="checkbox" id="ytEnable" checked> Enable</div>
                             </div>
-
-                            <!-- Facebook Settings -->
-                            <div class="platform-section">
+                            <!-- Facebook Section -->
+                            <div class="platform-section facebook">
                                 <h3><i class="fab fa-facebook"></i> Facebook</h3>
-                                <div class="form-group">
-                                    <label>RTMP URL</label>
-                                    <input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
-                                </div>
-                                <div class="form-group">
-                                    <label>Stream Key</label>
-                                    <input type="text" id="fbKey" placeholder="FB-xxxxxxxxxx">
-                                </div>
+                                <label>RTMP URL</label>
+                                <input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
+                                <label>Stream Key</label>
+                                <input type="text" id="fbKey" placeholder="FB-xxxx">
+                                <div class="toggle-stream"><input type="checkbox" id="fbEnable" checked> Enable</div>
                             </div>
-
-                            <!-- Control buttons -->
+                            <!-- Scheduling & Looping -->
+                            <div class="advanced-settings">
+                                <h4>Scheduling & Looping</h4>
+                                <label>Schedule</label>
+                                <input type="datetime-local" id="scheduleTime">
+                                <label>Loop Mode</label>
+                                <select id="loopMode">
+                                    <option value="1">1 time</option>
+                                    <option value="2">2 times</option>
+                                    <option value="3">3 times</option>
+                                    <option value="4">4 times</option>
+                                    <option value="continuous">Continuous</option>
+                                    <option value="1h">1 hour</option>
+                                    <option value="24h">24 hours</option>
+                                </select>
+                                <label>Auto‑reconnect</label>
+                                <input type="checkbox" id="autoReconnect" checked>
+                            </div>
+                            <!-- Overlay Controls -->
+                            <div class="overlay-controls">
+                                <h4>Overlays</h4>
+                                <label><input type="checkbox" id="enableLowerThird"> Lower Third</label>
+                                <label><input type="checkbox" id="enableWatermark"> Watermark</label>
+                                <label><input type="checkbox" id="enableCountdown"> Countdown</label>
+                                <label>Background Music URL</label>
+                                <input type="text" id="bgMusic" placeholder="https://...">
+                            </div>
+                            <!-- Action Buttons -->
                             <div class="form-actions">
-                                <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start Stream</button>
+                                <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start</button>
                                 <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
                                 <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
                             </div>
                         </div>
-                        <!-- Status panel (unchanged) -->
+                        <!-- Status Panel -->
                         <div class="stream-status-panel">
                             <h3>Stream Status</h3>
                             <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
                             <div class="status-item"><span>Connection:</span> <span id="connectionStatus">Disconnected</span></div>
                             <div class="status-item"><span>Bitrate:</span> <span id="bitrate">0 kbps</span></div>
+                            <div class="status-item"><span>Dropped Frames:</span> <span id="droppedFrames">0</span></div>
+                            <div class="status-item"><span>CPU:</span> <span id="cpuUsage">0%</span></div>
+                            <div class="status-item"><span>Viewers:</span> <span id="viewers">0</span></div>
                             <div class="status-item"><span>Duration:</span> <span id="duration">00:00:00</span></div>
                         </div>
                     </div>
                     <div class="live-right">
+                        <!-- Preview Monitor with aspect toggles -->
                         <div class="preview-monitor">
                             <h3>Preview Monitor</h3>
-                            <video id="livePreview" controls></video>
+                            <div class="aspect-toggles">
+                                <button class="aspect-btn" data-aspect="16:9">16:9</button>
+                                <button class="aspect-btn" data-aspect="9:16">9:16</button>
+                                <button class="aspect-btn" data-aspect="1:1">1:1</button>
+                                <button class="aspect-btn" data-aspect="4:5">4:5</button>
+                                <button class="aspect-btn" data-aspect="fill">Fill</button>
+                            </div>
+                            <div class="video-wrapper" id="videoWrapper">
+                                <video id="livePreview" controls></video>
+                            </div>
                             <div class="preview-stats">
                                 <span>Latency: <span id="latency">~2s</span></span>
-                                <span>Frame Rate: <span id="fps">30</span></span>
+                                <span>FPS: <span id="fps">30</span></span>
                                 <span>Resolution: <span id="resolution">1280x720</span></span>
                             </div>
                         </div>
@@ -193,49 +211,65 @@
                 </div>
             </div>
 
-            <!-- Stream History (unchanged) -->
+            <!-- Playlists -->
+            <div class="content-view" id="view-playlists">
+                <h2>Playlists</h2>
+                <div class="playlist-manager">
+                    <button class="btn primary" id="newPlaylistBtn"><i class="fas fa-plus"></i> New Playlist</button>
+                    <div class="playlist-grid" id="playlistGrid"></div>
+                </div>
+            </div>
+
+            <!-- History (auto‑clears after 3 days) -->
             <div class="content-view" id="view-history">
                 <h2>Stream History</h2>
                 <table class="history-table">
-                    <thead>
-                        <tr><th>Title</th><th>Date</th><th>Duration</th><th>Platform</th><th>Status</th></tr>
-                    </thead>
-                    <tbody id="historyBody">
-                        <!-- Populated by JS -->
-                    </tbody>
+                    <thead><tr><th>Title</th><th>Date</th><th>Duration</th><th>Platform</th><th>Status</th></tr></thead>
+                    <tbody id="historyBody"></tbody>
                 </table>
+                <p class="history-note">* History automatically deleted after 3 days</p>
             </div>
 
-            <!-- Settings (unchanged) -->
+            <!-- Analytics Dashboard -->
+            <div class="content-view" id="view-analytics">
+                <h2>Live Analytics</h2>
+                <div class="analytics-grid">
+                    <div class="chart-container"><canvas id="viewersChart"></canvas></div>
+                    <div class="chart-container"><canvas id="bitrateChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Settings (with password‑protected API URL) -->
             <div class="content-view" id="view-settings">
                 <h2>Settings</h2>
                 <div class="settings-group">
                     <h3>Stream Defaults</h3>
                     <label>Resolution</label>
-                    <select id="defaultResolution">
-                        <option>1920x1080</option>
-                        <option>1280x720</option>
-                        <option>854x480</option>
-                    </select>
+                    <select id="defaultResolution"><option>1920x1080</option><option>1280x720</option></select>
                     <label>Bitrate (kbps)</label>
                     <input type="number" id="defaultBitrate" value="2500">
                     <label>Encoder</label>
-                    <select id="defaultEncoder">
-                        <option>libx264</option>
-                        <option>h264_nvenc</option>
-                    </select>
+                    <select id="defaultEncoder"><option>libx264</option><option>h264_nvenc</option></select>
                 </div>
                 <div class="settings-group">
-                    <h3>API Endpoint</h3>
-                    <label>Backend URL (no trailing slash)</label>
-                    <input type="url" id="apiUrl" placeholder="https://your-backend.com">
+                    <h3>API Endpoint (locked)</h3>
+                    <label>Password to edit</label>
+                    <input type="password" id="apiPassword" placeholder="Enter password">
+                    <button class="btn" id="unlockApi">Unlock</button>
+                    <input type="url" id="apiUrl" placeholder="https://your-backend.com" readonly>
+                    <button class="btn primary" id="saveSettings">Save</button>
+                    <p class="hint">Default password: Dunamis@100</p>
                 </div>
                 <div class="settings-group">
                     <h3>Theme</h3>
                     <button class="btn" id="toggleTheme">Toggle Dark/Light</button>
                 </div>
-                <button class="btn primary" id="saveSettings">Save Settings</button>
             </div>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                <p>© 2026 LiveStream Pro. Designed by Bright Dumashie.</p>
+            </footer>
         </main>
     </div>
 
