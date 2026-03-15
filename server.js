@@ -8,40 +8,27 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Configure multer for video uploads
+// Multer config
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = 'uploads';
         if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
         cb(null, uploadDir);
     },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+    filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
-const upload = multer({
-    storage,
-    limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB
-});
+const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 * 1024 } });
 
-// In-memory store for active streams
-let activeStream = null; // { processes, ... }
+let activeStream = null; // { processes, title, ... }
 
-// ========== API Endpoints ==========
-
-// Upload video
+// Upload endpoint
 app.post('/upload-video', upload.single('video'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    res.json({
-        message: 'Upload successful',
-        id: req.file.filename,
-        path: req.file.path
-    });
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    res.json({ message: 'Uploaded', id: req.file.filename, path: req.file.path });
 });
 
 // List videos
@@ -52,109 +39,79 @@ app.get('/videos', (req, res) => {
     });
 });
 
-// Start stream – accepts custom RTMP URLs
+// Start stream – handles multiple platforms and options
 app.post('/start-stream', (req, res) => {
     const {
-        title, description, privacy,
+        title, description,
         youtubeRtmpPrimary, youtubeRtmpBackup, youtubeKey,
-        facebookRtmp, facebookKey
+        facebookRtmp, facebookKey,
+        loopMode, autoReconnect, overlays
     } = req.body;
 
-    // Find a video to stream (use the most recent uploaded)
+    // Find latest video
     const videosDir = 'uploads';
     let videoFile = null;
     if (fs.existsSync(videosDir)) {
         const files = fs.readdirSync(videosDir);
-        if (files.length > 0) videoFile = path.join(videosDir, files[files.length - 1]); // latest
+        if (files.length) videoFile = path.join(videosDir, files[files.length - 1]);
     }
-    if (!videoFile) {
-        return res.status(400).json({ error: 'No video found. Upload a video first.' });
-    }
+    if (!videoFile) return res.status(400).json({ error: 'No video found' });
 
     const processes = [];
 
-    // YouTube stream(s)
+    // YouTube
     if (youtubeKey && youtubeRtmpPrimary) {
-        // Primary
         const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
-        const procPrimary = spawn('ffmpeg', [
-            '-re', '-i', videoFile,
+        const proc = spawn('ffmpeg', ['-re', '-i', videoFile,
             '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
-            '-c:a', 'aac',
-            '-f', 'flv',
-            primaryUrl
-        ]);
-        procPrimary.stderr.on('data', (data) => console.log(`FFmpeg YouTube Primary: ${data}`));
-        procPrimary.on('close', (code) => console.log(`FFmpeg YouTube Primary exited with code ${code}`));
-        processes.push(procPrimary);
-
-        // Backup if provided
+            '-c:a', 'aac', '-f', 'flv', primaryUrl]);
+        proc.stderr.on('data', d => console.log(`YT: ${d}`));
+        processes.push(proc);
         if (youtubeRtmpBackup) {
             const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
-            const procBackup = spawn('ffmpeg', [
-                '-re', '-i', videoFile,
+            const proc2 = spawn('ffmpeg', ['-re', '-i', videoFile,
                 '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
-                '-c:a', 'aac',
-                '-f', 'flv',
-                backupUrl
-            ]);
-            procBackup.stderr.on('data', (data) => console.log(`FFmpeg YouTube Backup: ${data}`));
-            procBackup.on('close', (code) => console.log(`FFmpeg YouTube Backup exited with code ${code}`));
-            processes.push(procBackup);
+                '-c:a', 'aac', '-f', 'flv', backupUrl]);
+            proc2.stderr.on('data', d => console.log(`YT Backup: ${d}`));
+            processes.push(proc2);
         }
     }
 
-    // Facebook stream
+    // Facebook
     if (facebookKey && facebookRtmp) {
         const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
-        const procFb = spawn('ffmpeg', [
-            '-re', '-i', videoFile,
+        const proc = spawn('ffmpeg', ['-re', '-i', videoFile,
             '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
-            '-c:a', 'aac',
-            '-f', 'flv',
-            fbUrl
-        ]);
-        procFb.stderr.on('data', (data) => console.log(`FFmpeg Facebook: ${data}`));
-        procFb.on('close', (code) => console.log(`FFmpeg Facebook exited with code ${code}`));
-        processes.push(procFb);
+            '-c:a', 'aac', '-f', 'flv', fbUrl]);
+        proc.stderr.on('data', d => console.log(`FB: ${d}`));
+        processes.push(proc);
     }
 
-    if (processes.length === 0) {
-        return res.status(400).json({ error: 'No valid stream destinations configured' });
-    }
+    if (processes.length === 0) return res.status(400).json({ error: 'No valid destinations' });
 
-    activeStream = { processes, title, description, privacy };
-    res.json({ message: 'Stream started', destinations: processes.length });
+    activeStream = { processes, title, description, loopMode, autoReconnect, overlays };
+    res.json({ message: 'Stream started', count: processes.length });
 });
 
 // Stop stream
 app.post('/stop-stream', (req, res) => {
-    if (activeStream && activeStream.processes) {
-        activeStream.processes.forEach(proc => proc.kill('SIGINT'));
+    if (activeStream) {
+        activeStream.processes.forEach(p => p.kill('SIGINT'));
         activeStream = null;
     }
-    res.json({ message: 'Stream stopped' });
+    res.json({ message: 'Stopped' });
 });
 
-// Stream status
+// Status
 app.get('/stream-status', (req, res) => {
-    if (activeStream) {
-        res.json({ active: true, title: activeStream.title });
-    } else {
-        res.json({ active: false });
-    }
+    res.json({ active: !!activeStream, title: activeStream?.title });
 });
 
-// Mock preview (optional)
+// Preview (mock)
 app.get('/preview', (req, res) => {
     const sample = path.join(__dirname, 'uploads', 'sample.mp4');
-    if (fs.existsSync(sample)) {
-        res.sendFile(sample);
-    } else {
-        res.status(404).send('No preview available');
-    }
+    if (fs.existsSync(sample)) res.sendFile(sample);
+    else res.status(404).send('No preview');
 });
 
-app.listen(PORT, () => {
-    console.log(`Backend running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Backend on port ${PORT}`));
