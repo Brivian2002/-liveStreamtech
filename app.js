@@ -4,8 +4,8 @@ let playlists = [];
 let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
-// Permanent API endpoint – no longer editable
-const apiBaseUrl = 'https://livestreamtech.onrender.com';
+// Permanent API endpoint – using Render URL
+const apiBaseUrl = 'https://livestreamtech.onrender.com'; // Replace with your actual Render URL
 
 // DOM Elements
 const views = document.querySelectorAll('.content-view');
@@ -85,6 +85,9 @@ const defaultBitrate = document.getElementById('defaultBitrate');
 const defaultEncoder = document.getElementById('defaultEncoder');
 const toggleThemeBtn = document.getElementById('toggleTheme');
 
+// Toast
+const autoDeleteToast = document.getElementById('autoDeleteToast');
+
 // Charts
 let viewersChart, bitrateChart;
 
@@ -135,6 +138,65 @@ async function measureSpeed() {
 }
 setInterval(measureSpeed, 10000);
 measureSpeed();
+
+// ==================== Auto‑delete functions ====================
+// Show toast notification once per session
+function showAutoDeleteToast() {
+  if (!sessionStorage.getItem('toastShown')) {
+    autoDeleteToast.style.display = 'block';
+    setTimeout(() => {
+      autoDeleteToast.style.display = 'none';
+    }, 5000);
+    sessionStorage.setItem('toastShown', 'true');
+  }
+}
+
+// Delete a single video by ID
+async function deleteVideo(videoId) {
+  if (!confirm('Are you sure you want to delete this video?')) return;
+  try {
+    const res = await fetch(`${apiBaseUrl}/videos/${videoId}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      // Remove from local array and re-render
+      uploadedVideos = uploadedVideos.filter(v => v.id !== videoId);
+      renderLibrary();
+      updateStats();
+    } else {
+      alert('Failed to delete video');
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+// Clean up videos older than 24 hours
+async function cleanupOldVideos() {
+  try {
+    const res = await fetch(`${apiBaseUrl}/videos`);
+    if (!res.ok) return;
+    const videos = await res.json();
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+    for (const video of videos) {
+      const uploadTime = new Date(video.upload_date).getTime();
+      if (now - uploadTime > oneDay) {
+        await fetch(`${apiBaseUrl}/videos/${video.id}`, { method: 'DELETE' });
+        console.log(`Deleted old video: ${video.original_name}`);
+      }
+    }
+    // Refresh list
+    fetchVideos();
+  } catch (err) {
+    console.error('Auto-cleanup error:', err);
+  }
+}
+
+// Run cleanup every 24 hours (86400000 ms)
+setInterval(cleanupOldVideos, 86400000);
+// Also run on page load
+cleanupOldVideos();
 
 // ==================== Navigation ====================
 navItems.forEach(item => {
@@ -213,6 +275,8 @@ async function handleFileUpload(file) {
     progressFill.style.width = '100%';
     progressStatus.textContent = 'Complete!';
     setTimeout(() => uploadProgress.style.display = 'none', 1000);
+    // Show toast after first upload
+    showAutoDeleteToast();
   } catch (err) {
     clearInterval(interval);
     alert(err.message);
@@ -221,7 +285,7 @@ async function handleFileUpload(file) {
 }
 
 saveMetadataBtn.addEventListener('click', async () => {
-  const selectedId = uploadedVideos[0]?.id;
+  const selectedId = uploadedVideos[0]?.id; // simplistic – you'd need to track selected video
   if (!selectedId) return alert('Select a video first');
   await fetch(`${apiBaseUrl}/videos/${selectedId}`, {
     method: 'PUT',
@@ -250,13 +314,22 @@ function renderLibrary() {
         <p>${video.original_name.substring(0, 20)}...</p>
         <small>${(video.size / 1e6).toFixed(2)} MB</small>
       </div>
+      <button class="delete-video-btn" data-id="${video.id}"><i class="fas fa-trash"></i></button>
     `;
-    item.addEventListener('click', () => {
+    // Video click to preview
+    item.querySelector('video').addEventListener('click', (e) => {
+      e.stopPropagation();
       previewPlayer.src = `${apiBaseUrl}/uploads/${video.filename}`;
       videoTitle.value = video.title || video.original_name;
       videoTags.value = video.tags || '';
       videoDesc.value = video.description || '';
       document.querySelector('[data-view="upload"]').click();
+    });
+    // Delete button
+    const deleteBtn = item.querySelector('.delete-video-btn');
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteVideo(video.id);
     });
     libraryGrid.appendChild(item);
   });
@@ -477,3 +550,5 @@ defaultEncoder.addEventListener('change', () => localStorage.setItem('encoder', 
 // ==================== Initial ====================
 fetchVideos();
 fetchHistory();
+// Show toast if there are videos (optional)
+if (uploadedVideos.length) showAutoDeleteToast();
