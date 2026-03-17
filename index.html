@@ -13,7 +13,7 @@
     <script type="module" src="https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="dark-theme"> <!-- Default dark, can be toggled -->
+<body class="dark-theme">
     <!-- Splash Screen / Login -->
     <div id="splash-container" class="splash-container">
         <div class="animated-bg">
@@ -28,7 +28,6 @@
             <p>Professional streaming dashboard</p>
             <button id="google-login" class="btn primary"><i class="fab fa-google"></i> Sign in with Google</button>
             <button id="email-login" class="btn secondary"><i class="fas fa-envelope"></i> Sign in with Email</button>
-            <!-- Optional name field for email sign-up (not fully implemented) -->
             <p class="terms-note">By signing in, you agree to our <a href="#" onclick="showView('terms')">Terms</a>.</p>
         </div>
     </div>
@@ -74,7 +73,7 @@
                     <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
                     <div class="profile-icon" id="profile-icon">
                         <i class="fas fa-user-circle"></i>
-                        <span id="profile-name"></span> <!-- displays name -->
+                        <span id="profile-name"></span>
                     </div>
                 </div>
             </header>
@@ -82,25 +81,180 @@
             <!-- Toast -->
             <div id="autoDeleteToast" class="toast-notification"><i class="fas fa-info-circle"></i> Your videos are automatically deleted after 24 hours.</div>
 
-            <!-- Dashboard View (same) -->
-            <div class="content-view active" id="view-dashboard">...</div>
+            <!-- Dashboard View -->
+            <div class="content-view active" id="view-dashboard">
+                <h2>Welcome back</h2>
+                <div class="stats-cards">
+                    <div class="stat-card"><i class="fas fa-video"></i><div><h3 id="videoCount">0</h3><p>Videos</p></div></div>
+                    <div class="stat-card"><i class="fas fa-clock"></i><div><h3 id="totalStreamTime">0</h3><p>Hours</p></div></div>
+                    <div class="stat-card"><i class="fas fa-eye"></i><div><h3 id="totalViews">0</h3><p>Views</p></div></div>
+                    <div class="stat-card"><i class="fas fa-heartbeat"></i><div><h3 id="streamHealth">98%</h3><p>Health</p></div></div>
+                </div>
+                <div class="video-library"><h3>Your Video Library</h3><div class="library-grid" id="videoLibraryGrid"></div></div>
+            </div>
 
-            <!-- Upload View (same) -->
-            <div class="content-view" id="view-upload">...</div>
+            <!-- Upload View -->
+            <div class="content-view" id="view-upload">
+                <h2>Upload Video</h2>
+                <div class="upload-area" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag & drop or <span class="browse-text">browse</span></p>
+                    <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/webm" hidden>
+                    <p class="supported-formats">MP4, MOV, WEBM (max 2GB)</p>
+                </div>
+                <div class="upload-progress" id="uploadProgress" style="display:none">
+                    <div class="progress-bar"><div class="progress-fill"></div></div>
+                    <p id="progressStatus">0%</p>
+                </div>
+                <div class="video-preview" id="videoPreview" style="display:none">
+                    <video id="previewPlayer" controls></video>
+                    <div class="meta-info" id="metaInfo"></div>
+                    <div class="metadata-fields">
+                        <input type="text" id="videoTitle" placeholder="Title">
+                        <input type="text" id="videoTags" placeholder="Tags (comma separated)">
+                        <textarea id="videoDesc" placeholder="Description"></textarea>
+                        <button class="btn primary" id="saveMetadata">Save Metadata</button>
+                    </div>
+                </div>
+            </div>
 
-            <!-- Live Control View (with TikTok) – same as before but resolution handled via settings -->
-            <div class="content-view" id="view-live">...</div>
+            <!-- Live Control View (with TikTok) -->
+            <div class="content-view" id="view-live">
+                <h2>Live Stream Control</h2>
+                <div class="live-panel">
+                    <div class="live-left">
+                        <div class="live-tabs">
+                            <button class="live-tab active" data-tab="status">Stream Status</button>
+                            <button class="live-tab" data-tab="info">Title & Desc</button>
+                            <button class="live-tab" data-tab="youtube">YouTube</button>
+                            <button class="live-tab" data-tab="facebook">Facebook</button>
+                            <button class="live-tab" data-tab="tiktok">TikTok</button>
+                            <button class="live-tab" data-tab="scheduling">Scheduling</button>
+                            <button class="live-tab" data-tab="overlays">Overlays</button>
+                        </div>
+                        <!-- Tab Contents -->
+                        <div class="tab-content active" id="tab-status">
+                            <div class="stream-status-panel">
+                                <h3>Stream Status</h3>
+                                <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
+                                <div class="status-item"><span>Connection:</span> <span id="connectionStatus">Disconnected</span></div>
+                                <div class="status-item"><span>Bitrate:</span> <span id="bitrate">0 kbps</span></div>
+                                <div class="status-item"><span>Dropped Frames:</span> <span id="droppedFrames">0</span></div>
+                                <div class="status-item"><span>CPU:</span> <span id="cpuUsage">0%</span></div>
+                                <div class="status-item"><span>Viewers:</span> <span id="viewers">0</span></div>
+                                <div class="status-item"><span>Duration:</span> <span id="duration">00:00:00</span></div>
+                            </div>
+                        </div>
+                        <div class="tab-content" id="tab-info">
+                            <div class="form-group"><label>Stream Title</label><input type="text" id="streamTitle" placeholder="My Stream"></div>
+                            <div class="form-group"><label>Description</label><textarea id="streamDesc" rows="3"></textarea></div>
+                        </div>
+                        <div class="tab-content" id="tab-youtube">
+                            <div class="platform-section youtube">
+                                <h3><i class="fab fa-youtube"></i> YouTube</h3>
+                                <label>Stream URL</label><input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
+                                <label>Backup Server URL</label><input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2">
+                                <label>Stream Key</label><input type="text" id="ytKey" placeholder="xxxx-xxxx">
+                                <div class="toggle-stream"><input type="checkbox" id="ytEnable" checked> Enable</div>
+                            </div>
+                        </div>
+                        <div class="tab-content" id="tab-facebook">
+                            <div class="platform-section facebook">
+                                <h3><i class="fab fa-facebook"></i> Facebook</h3>
+                                <label>RTMP URL</label><input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
+                                <label>Stream Key</label><input type="text" id="fbKey" placeholder="FB-xxxx">
+                                <div class="toggle-stream"><input type="checkbox" id="fbEnable" checked> Enable</div>
+                            </div>
+                        </div>
+                        <div class="tab-content" id="tab-tiktok">
+                            <div class="platform-section tiktok">
+                                <h3><i class="fab fa-tiktok"></i> TikTok</h3>
+                                <label>RTMP URL</label><input type="text" id="tiktokRtmp" placeholder="rtmp://live.tiktok.com/live/">
+                                <label>Stream Key</label><input type="text" id="tiktokKey" placeholder="your-tiktok-stream-key">
+                                <div class="toggle-stream"><input type="checkbox" id="tiktokEnable" checked> Enable</div>
+                            </div>
+                        </div>
+                        <div class="tab-content" id="tab-scheduling">
+                            <div class="advanced-settings">
+                                <h4>Scheduling & Looping</h4>
+                                <label>Schedule</label><input type="datetime-local" id="scheduleTime">
+                                <label>Loop Mode</label>
+                                <select id="loopMode">
+                                    <option value="1">1 time</option>
+                                    <option value="2">2 times</option>
+                                    <option value="3">3 times</option>
+                                    <option value="4">4 times</option>
+                                    <option value="continuous">Continuous</option>
+                                    <option value="1h">1 hour</option>
+                                    <option value="24h">24 hours</option>
+                                </select>
+                                <label>Auto‑reconnect</label><input type="checkbox" id="autoReconnect" checked>
+                            </div>
+                        </div>
+                        <div class="tab-content" id="tab-overlays">
+                            <div class="overlay-controls">
+                                <h4>Overlays</h4>
+                                <label><input type="checkbox" id="enableLowerThird"> Lower Third</label>
+                                <label><input type="checkbox" id="enableWatermark"> Watermark</label>
+                                <label><input type="checkbox" id="enableCountdown"> Countdown</label>
+                                <label>Background Music URL</label><input type="text" id="bgMusic" placeholder="https://...">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start</button>
+                            <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
+                            <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
+                        </div>
+                    </div>
+                    <div class="live-right">
+                        <div class="preview-monitor">
+                            <h3>Preview Monitor</h3>
+                            <div class="aspect-toggles">
+                                <button class="aspect-btn active" data-aspect="16:9">16:9</button>
+                                <button class="aspect-btn" data-aspect="9:16">9:16</button>
+                                <button class="aspect-btn" data-aspect="1:1">1:1</button>
+                                <button class="aspect-btn" data-aspect="4:5">4:5</button>
+                                <button class="aspect-btn" data-aspect="fill">Fill</button>
+                            </div>
+                            <div class="video-wrapper" id="videoWrapper"><video id="livePreview" controls></video></div>
+                            <div class="preview-stats">
+                                <span>Latency: <span id="latency">~2s</span></span>
+                                <span>FPS: <span id="fps">30</span></span>
+                                <span>Resolution: <span id="resolution">1280x720</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Playlists View -->
-            <div class="content-view" id="view-playlists">...</div>
+            <div class="content-view" id="view-playlists">
+                <h2>Playlists</h2>
+                <div class="playlist-manager">
+                    <button class="btn primary" id="newPlaylistBtn"><i class="fas fa-plus"></i> New Playlist</button>
+                    <div class="playlist-grid" id="playlistGrid"></div>
+                </div>
+            </div>
 
             <!-- History View -->
-            <div class="content-view" id="view-history">...</div>
+            <div class="content-view" id="view-history">
+                <h2>Stream History</h2>
+                <table class="history-table">
+                    <thead><tr><th>Title</th><th>Date</th><th>Duration</th><th>Platform</th><th>Status</th></tr></thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
 
             <!-- Analytics View -->
-            <div class="content-view" id="view-analytics">...</div>
+            <div class="content-view" id="view-analytics">
+                <h2>Live Analytics</h2>
+                <div class="analytics-grid">
+                    <div class="chart-container"><canvas id="viewersChart"></canvas></div>
+                    <div class="chart-container"><canvas id="bitrateChart"></canvas></div>
+                </div>
+            </div>
 
-            <!-- Settings View – added resolution selection -->
+            <!-- Settings View -->
             <div class="content-view" id="view-settings">
                 <h2>Settings</h2>
                 <div class="settings-group">
@@ -129,7 +283,7 @@
                 </div>
             </div>
 
-            <!-- Donation View – improved layout -->
+            <!-- Donation View -->
             <div class="content-view" id="view-donation">
                 <h2>Support the Project</h2>
                 <div class="donation-grid">
@@ -158,7 +312,7 @@
                 </div>
             </div>
 
-            <!-- Docs View – with expandable detailed content -->
+            <!-- Docs View -->
             <div class="content-view" id="view-docs">
                 <h2>Documentation</h2>
                 <div class="docs-grid">
@@ -245,7 +399,7 @@
                 </div>
             </div>
 
-            <!-- Terms & Privacy View – improved layout and content -->
+            <!-- Terms & Privacy View -->
             <div class="content-view" id="view-terms">
                 <h2>Terms of Service & Privacy Policy</h2>
                 <div class="terms-grid">
@@ -272,7 +426,7 @@
                 </div>
             </div>
 
-            <!-- Contact View (same) -->
+            <!-- Contact View -->
             <div class="content-view" id="view-contact">
                 <h2>Contact Us</h2>
                 <div class="contact-info">
