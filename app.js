@@ -5,7 +5,7 @@ let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
 // Permanent API endpoint – no longer editable
-const apiBaseUrl = 'http://129.146.45.248:4000';
+const apiBaseUrl = 'https://livestreamtech.onrender.com';
 
 // DOM Elements
 const views = document.querySelectorAll('.content-view');
