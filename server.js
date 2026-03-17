@@ -159,7 +159,7 @@ app.delete('/videos/:id', async (req, res) => {
   }
 });
 
-// Start stream
+// Start stream endpoint (inside app.post('/start-stream', ...)
 app.post('/start-stream', async (req, res) => {
   const {
     title, description,
@@ -172,46 +172,46 @@ app.post('/start-stream', async (req, res) => {
   if (files.length === 0) return res.status(400).json({ error: 'No video uploaded' });
   const videoFile = path.join(uploadDir, files[files.length - 1]);
 
-    const processes = [];
+  const processes = [];
 
+  // YouTube primary
   if (youtubeKey && youtubeRtmpPrimary) {
     const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
-    // YouTube primary stream with optimised settings
     const proc1 = spawn('ffmpeg', [
       '-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
-      '-vf', 'scale=1280:720',         // optional: force 720p
-      '-c:a', 'aac', '-b:a', '128k',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
+      '-vf', 'scale=854:480',
+      '-c:a', 'aac', '-b:a', '96k',
       '-threads', '2',
       '-f', 'flv', primaryUrl
     ]);
     proc1.stderr.on('data', d => console.log(`YT Primary: ${d}`));
     processes.push(proc1);
-
-    if (youtubeRtmpBackup) {
-      const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
-      // YouTube backup stream with same optimised settings
-      const proc2 = spawn('ffmpeg', [
-        '-re', '-i', videoFile,
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
-        '-vf', 'scale=1280:720',
-        '-c:a', 'aac', '-b:a', '128k',
-        '-threads', '2',
-        '-f', 'flv', backupUrl
-      ]);
-      proc2.stderr.on('data', d => console.log(`YT Backup: ${d}`));
-      processes.push(proc2);
-    }
   }
 
+  // YouTube backup (only if backup URL provided)
+  if (youtubeKey && youtubeRtmpBackup) {
+    const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
+    const proc2 = spawn('ffmpeg', [
+      '-re', '-i', videoFile,
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
+      '-vf', 'scale=854:480',
+      '-c:a', 'aac', '-b:a', '96k',
+      '-threads', '2',
+      '-f', 'flv', backupUrl
+    ]);
+    proc2.stderr.on('data', d => console.log(`YT Backup: ${d}`));
+    processes.push(proc2);
+  }
+
+  // Facebook
   if (facebookKey && facebookRtmp) {
     const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
-    // Facebook stream with optimised settings
     const procFb = spawn('ffmpeg', [
       '-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
-      '-vf', 'scale=1280:720',
-      '-c:a', 'aac', '-b:a', '128k',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
+      '-vf', 'scale=854:480',
+      '-c:a', 'aac', '-b:a', '96k',
       '-threads', '2',
       '-f', 'flv', fbUrl
     ]);
