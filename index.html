@@ -1,274 +1,470 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiveStream Pro</title>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body class="light-theme">
-    <div class="app">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="logo">
-                <i class="fab fa-youtube" style="color:#ff0000;"></i>
-                <span>LiveStream Pro</span>
-            </div>
-            <nav class="nav-menu">
-                <a href="#" class="nav-item active" data-view="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</a>
-                <a href="#" class="nav-item" data-view="upload"><i class="fas fa-cloud-upload-alt"></i> Upload</a>
-                <a href="#" class="nav-item" data-view="live"><i class="fas fa-video"></i> Live Control</a>
-                <a href="#" class="nav-item" data-view="playlists"><i class="fas fa-list"></i> Playlists</a>
-                <a href="#" class="nav-item" data-view="history"><i class="fas fa-history"></i> History</a>
-                <a href="#" class="nav-item" data-view="analytics"><i class="fas fa-chart-line"></i> Analytics</a>
-                <a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> Settings</a>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="user-profile">
-                    <i class="fas fa-user-circle"></i>
-                </div>
-            </div>
-        </aside>
+// ==================== State ====================
+let uploadedVideos = [];
+let playlists = [];
+let streamActive = false;
+let streamTimer = null;
+let streamSeconds = 0;
+const API_BASE_URL = 'http://129.146.45.248:4000'; // Hardcoded VPS IP
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <header class="navbar">
-                <div class="navbar-left">
-                    <h2 id="page-title">Dashboard</h2>
-                </div>
-                <div class="navbar-right">
-                    <div class="speed-meter">
-                        <i class="fas fa-wifi"></i>
-                        <span id="internetSpeed">0 Mbps</span>
-                    </div>
-                    <div class="stream-status" id="globalStreamStatus">
-                        <span class="status-dot offline"></span>
-                        <span>Offline</span>
-                    </div>
-                    <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
-                    <div class="profile-icon">
-                        <i class="fas fa-user-circle animated-logo"></i>
-                    </div>
-                </div>
-            </header>
+// DOM Elements
+const views = document.querySelectorAll('.content-view');
+const navItems = document.querySelectorAll('.nav-item');
+const pageTitle = document.getElementById('page-title');
+const globalStatusDot = document.querySelector('.stream-status .status-dot');
+const globalStatusText = document.querySelector('.stream-status span:last-child');
+const videoCountSpan = document.getElementById('videoCount');
+const totalStreamTimeSpan = document.getElementById('totalStreamTime');
+const totalViewsSpan = document.getElementById('totalViews');
+const streamHealthSpan = document.getElementById('streamHealth');
+const internetSpeedSpan = document.getElementById('internetSpeed');
 
-            <!-- Dashboard View -->
-            <div class="content-view active" id="view-dashboard">
-                <h2>Welcome back</h2>
-                <div class="stats-cards">
-                    <div class="stat-card"><i class="fas fa-video"></i><div><h3 id="videoCount">0</h3><p>Videos</p></div></div>
-                    <div class="stat-card"><i class="fas fa-clock"></i><div><h3 id="totalStreamTime">0</h3><p>Hours</p></div></div>
-                    <div class="stat-card"><i class="fas fa-eye"></i><div><h3 id="totalViews">0</h3><p>Views</p></div></div>
-                    <div class="stat-card"><i class="fas fa-heartbeat"></i><div><h3 id="streamHealth">98%</h3><p>Health</p></div></div>
-                </div>
-                <div class="video-library">
-                    <h3>Your Video Library</h3>
-                    <div class="library-grid" id="videoLibraryGrid"></div>
-                </div>
-            </div>
+// Upload
+const dropArea = document.getElementById('dropArea');
+const fileInput = document.getElementById('fileInput');
+const uploadProgress = document.getElementById('uploadProgress');
+const progressFill = document.querySelector('.progress-fill');
+const progressStatus = document.getElementById('progressStatus');
+const videoPreview = document.getElementById('videoPreview');
+const previewPlayer = document.getElementById('previewPlayer');
+const metaInfo = document.getElementById('metaInfo');
+const videoTitle = document.getElementById('videoTitle');
+const videoTags = document.getElementById('videoTags');
+const videoDesc = document.getElementById('videoDesc');
+const saveMetadataBtn = document.getElementById('saveMetadata');
 
-            <!-- Upload View -->
-            <div class="content-view" id="view-upload">
-                <h2>Upload Video</h2>
-                <div class="upload-area" id="dropArea">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag & drop or <span class="browse-text">browse</span></p>
-                    <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/webm" hidden>
-                    <p class="supported-formats">MP4, MOV, WEBM (max 2GB)</p>
-                </div>
-                <div class="upload-progress" id="uploadProgress" style="display:none">
-                    <div class="progress-bar"><div class="progress-fill"></div></div>
-                    <p id="progressStatus">0%</p>
-                </div>
-                <div class="video-preview" id="videoPreview" style="display:none">
-                    <video id="previewPlayer" controls></video>
-                    <div class="meta-info" id="metaInfo"></div>
-                    <div class="metadata-fields">
-                        <input type="text" id="videoTitle" placeholder="Title">
-                        <input type="text" id="videoTags" placeholder="Tags (comma separated)">
-                        <textarea id="videoDesc" placeholder="Description"></textarea>
-                        <button class="btn primary" id="saveMetadata">Save Metadata</button>
-                    </div>
-                </div>
-            </div>
+// Live tabs
+const liveTabs = document.querySelectorAll('.live-tab');
+const tabContents = document.querySelectorAll('.live-tab-content');
 
-            <!-- Live Control (tabbed) -->
-            <div class="content-view" id="view-live">
-                <h2>Live Stream Control</h2>
-                <div class="live-panel">
-                    <div class="live-left">
-                        <div class="live-tabs">
-                            <button class="live-tab active" data-tab="status">Stream Status</button>
-                            <button class="live-tab" data-tab="schedule">Scheduling & Looping</button>
-                            <button class="live-tab" data-tab="overlays">Overlays</button>
-                            <button class="live-tab" data-tab="info">Stream Info</button>
-                            <button class="live-tab" data-tab="youtube">YouTube</button>
-                            <button class="live-tab" data-tab="facebook">Facebook</button>
-                        </div>
-                        <!-- Tab Contents -->
-                        <div class="live-tab-content active" id="tab-status">
-                            <div class="stream-status-panel">
-                                <h3>Stream Status</h3>
-                                <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
-                                <div class="status-item"><span>Connection:</span> <span id="connectionStatus">Disconnected</span></div>
-                                <div class="status-item"><span>Bitrate:</span> <span id="bitrate">0 kbps</span></div>
-                                <div class="status-item"><span>Dropped Frames:</span> <span id="droppedFrames">0</span></div>
-                                <div class="status-item"><span>CPU:</span> <span id="cpuUsage">0%</span></div>
-                                <div class="status-item"><span>Viewers:</span> <span id="viewers">0</span></div>
-                                <div class="status-item"><span>Duration:</span> <span id="duration">00:00:00</span></div>
-                            </div>
-                        </div>
-                        <div class="live-tab-content" id="tab-schedule">
-                            <div class="advanced-settings">
-                                <h4>Scheduling & Looping</h4>
-                                <label>Schedule</label>
-                                <input type="datetime-local" id="scheduleTime">
-                                <label>Loop Mode</label>
-                                <select id="loopMode">
-                                    <option value="1">1 time</option>
-                                    <option value="2">2 times</option>
-                                    <option value="3">3 times</option>
-                                    <option value="4">4 times</option>
-                                    <option value="continuous">Continuous</option>
-                                    <option value="1h">1 hour</option>
-                                    <option value="24h">24 hours</option>
-                                </select>
-                                <label>Auto‑reconnect</label>
-                                <input type="checkbox" id="autoReconnect" checked>
-                            </div>
-                        </div>
-                        <div class="live-tab-content" id="tab-overlays">
-                            <div class="overlay-controls">
-                                <h4>Overlays</h4>
-                                <label><input type="checkbox" id="enableLowerThird"> Lower Third</label>
-                                <label><input type="checkbox" id="enableWatermark"> Watermark</label>
-                                <label><input type="checkbox" id="enableCountdown"> Countdown</label>
-                                <label>Background Music URL</label>
-                                <input type="text" id="bgMusic" placeholder="https://...">
-                            </div>
-                        </div>
-                        <div class="live-tab-content" id="tab-info">
-                            <div class="stream-form">
-                                <div class="form-group">
-                                    <label>Stream Title</label>
-                                    <input type="text" id="streamTitle" placeholder="My Stream">
-                                </div>
-                                <div class="form-group">
-                                    <label>Description</label>
-                                    <textarea id="streamDesc" rows="2"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="live-tab-content" id="tab-youtube">
-                            <div class="platform-section youtube">
-                                <h3><i class="fab fa-youtube"></i> YouTube</h3>
-                                <label>Stream URL</label>
-                                <input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
-                                <label>Backup Server URL</label>
-                                <input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2?backup=1">
-                                <label>Stream Key</label>
-                                <input type="text" id="ytKey" placeholder="xxxx-xxxx">
-                                <div class="toggle-stream"><input type="checkbox" id="ytEnable" checked> Enable</div>
-                            </div>
-                        </div>
-                        <div class="live-tab-content" id="tab-facebook">
-                            <div class="platform-section facebook">
-                                <h3><i class="fab fa-facebook"></i> Facebook</h3>
-                                <label>RTMP URL</label>
-                                <input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
-                                <label>Stream Key</label>
-                                <input type="text" id="fbKey" placeholder="FB-xxxx">
-                                <div class="toggle-stream"><input type="checkbox" id="fbEnable" checked> Enable</div>
-                            </div>
-                        </div>
-                        <!-- Action buttons (always visible) -->
-                        <div class="form-actions">
-                            <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start</button>
-                            <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
-                            <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
-                        </div>
-                    </div>
-                    <div class="live-right">
-                        <div class="preview-monitor">
-                            <h3>Preview Monitor</h3>
-                            <div class="aspect-toggles">
-                                <button class="aspect-btn active" data-aspect="16:9">16:9</button>
-                                <button class="aspect-btn" data-aspect="9:16">9:16</button>
-                                <button class="aspect-btn" data-aspect="1:1">1:1</button>
-                                <button class="aspect-btn" data-aspect="4:5">4:5</button>
-                                <button class="aspect-btn" data-aspect="fill">Fill</button>
-                            </div>
-                            <div class="video-wrapper" id="videoWrapper">
-                                <video id="livePreview" controls></video>
-                            </div>
-                            <div class="preview-stats">
-                                <span>Latency: <span id="latency">~2s</span></span>
-                                <span>FPS: <span id="fps">30</span></span>
-                                <span>Resolution: <span id="resolution">1280x720</span></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+const streamTitle = document.getElementById('streamTitle');
+const streamDesc = document.getElementById('streamDesc');
+const ytRtmpPrimary = document.getElementById('ytRtmpPrimary');
+const ytRtmpBackup = document.getElementById('ytRtmpBackup');
+const ytKey = document.getElementById('ytKey');
+const ytEnable = document.getElementById('ytEnable');
+const fbRtmp = document.getElementById('fbRtmp');
+const fbKey = document.getElementById('fbKey');
+const fbEnable = document.getElementById('fbEnable');
+const scheduleTime = document.getElementById('scheduleTime');
+const loopMode = document.getElementById('loopMode');
+const autoReconnect = document.getElementById('autoReconnect');
+const enableLowerThird = document.getElementById('enableLowerThird');
+const enableWatermark = document.getElementById('enableWatermark');
+const enableCountdown = document.getElementById('enableCountdown');
+const bgMusic = document.getElementById('bgMusic');
+const startBtn = document.getElementById('startStreamBtn');
+const stopBtn = document.getElementById('stopStreamBtn');
+const pauseBtn = document.getElementById('pauseStreamBtn');
+const streamStatusText = document.getElementById('streamStatusText');
+const connectionStatus = document.getElementById('connectionStatus');
+const bitrateSpan = document.getElementById('bitrate');
+const droppedFramesSpan = document.getElementById('droppedFrames');
+const cpuUsageSpan = document.getElementById('cpuUsage');
+const viewersSpan = document.getElementById('viewers');
+const durationSpan = document.getElementById('duration');
+const livePreview = document.getElementById('livePreview');
+const latencySpan = document.getElementById('latency');
+const fpsSpan = document.getElementById('fps');
+const resolutionSpan = document.getElementById('resolution');
+const aspectBtns = document.querySelectorAll('.aspect-btn');
+const videoWrapper = document.getElementById('videoWrapper');
 
-            <!-- Playlists View (placeholder) -->
-            <div class="content-view" id="view-playlists">
-                <h2>Playlists</h2>
-                <div class="playlist-manager">
-                    <button class="btn primary" id="newPlaylistBtn"><i class="fas fa-plus"></i> New Playlist</button>
-                    <div class="playlist-grid" id="playlistGrid"></div>
-                </div>
-            </div>
+// Library
+const libraryGrid = document.getElementById('videoLibraryGrid');
+const historyBody = document.getElementById('historyBody');
 
-            <!-- History View -->
-            <div class="content-view" id="view-history">
-                <h2>Stream History</h2>
-                <table class="history-table">
-                    <thead><tr><th>Title</th><th>Date</th><th>Duration</th><th>Platform</th><th>Status</th></tr></thead>
-                    <tbody id="historyBody"></tbody>
-                </table>
-            </div>
+// Playlists
+const newPlaylistBtn = document.getElementById('newPlaylistBtn');
+const playlistGrid = document.getElementById('playlistGrid');
 
-            <!-- Analytics View -->
-            <div class="content-view" id="view-analytics">
-                <h2>Live Analytics</h2>
-                <div class="analytics-grid">
-                    <div class="chart-container"><canvas id="viewersChart"></canvas></div>
-                    <div class="chart-container"><canvas id="bitrateChart"></canvas></div>
-                </div>
-            </div>
+// Settings
+const defaultResolution = document.getElementById('defaultResolution');
+const defaultBitrate = document.getElementById('defaultBitrate');
+const defaultEncoder = document.getElementById('defaultEncoder');
+const toggleThemeBtn = document.getElementById('toggleTheme');
 
-            <!-- Settings View (no API field, just theme) -->
-            <div class="content-view" id="view-settings">
-                <h2>Settings</h2>
-                <div class="settings-group">
-                    <h3>Stream Defaults</h3>
-                    <label>Resolution</label>
-                    <select id="defaultResolution"><option>1920x1080</option><option>1280x720</option></select>
-                    <label>Bitrate (kbps)</label>
-                    <input type="number" id="defaultBitrate" value="2500">
-                    <label>Encoder</label>
-                    <select id="defaultEncoder"><option>libx264</option><option>h264_nvenc</option></select>
-                </div>
-                <div class="settings-group">
-                    <h3>Theme</h3>
-                    <button class="btn" id="toggleTheme">Toggle Dark/Light</button>
-                </div>
-            </div>
+// Charts
+let viewersChart, bitrateChart;
 
-            <footer class="app-footer">
-                <p>© 2026 LiveStream Pro. Designed by Bright Dumashie.</p>
-            </footer>
-        </main>
-    </div>
+// ==================== Helpers ====================
+async function fetchVideos() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/videos`);
+    if (res.ok) {
+      uploadedVideos = await res.json();
+      renderLibrary();
+      updateStats();
+    }
+  } catch (err) {
+    console.error('Failed to fetch videos', err);
+  }
+}
 
-    <script src="app.js"></script>
-</body>
-</html>
+async function fetchHistory() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/stream-history`);
+    if (res.ok) {
+      const history = await res.json();
+      renderHistory(history);
+    }
+  } catch (err) {
+    console.error('Failed to fetch history', err);
+  }
+}
+
+function updateStats() {
+  videoCountSpan.textContent = uploadedVideos.length;
+  totalViewsSpan.textContent = Math.floor(Math.random() * 1000);
+  streamHealthSpan.textContent = (95 + Math.random() * 4).toFixed(1) + '%';
+}
+
+// Internet speed test
+async function measureSpeed() {
+  const startTime = Date.now();
+  try {
+    await fetch('https://httpbin.org/bytes/100000');
+    const endTime = Date.now();
+    const duration = (endTime - startTime) / 1000;
+    const speedMbps = (0.1 * 8) / duration;
+    internetSpeedSpan.textContent = speedMbps.toFixed(1) + ' Mbps';
+  } catch {
+    internetSpeedSpan.textContent = 'N/A';
+  }
+}
+setInterval(measureSpeed, 10000);
+measureSpeed();
+
+// ==================== Navigation ====================
+navItems.forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    const viewId = item.dataset.view;
+    navItems.forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    views.forEach(v => v.classList.remove('active'));
+    document.getElementById(`view-${viewId}`).classList.add('active');
+    pageTitle.textContent = item.querySelector('span').textContent;
+    if (viewId === 'history') fetchHistory();
+    if (viewId === 'dashboard') fetchVideos();
+  });
+});
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  navItems.forEach(n => n.classList.remove('active'));
+  document.querySelector('[data-view="settings"]').classList.add('active');
+  views.forEach(v => v.classList.remove('active'));
+  document.getElementById('view-settings').classList.add('active');
+  pageTitle.textContent = 'Settings';
+});
+
+// ==================== Live Tabs ====================
+liveTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    liveTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    tabContents.forEach(content => content.classList.remove('active'));
+    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+  });
+});
+
+// ==================== Upload ====================
+dropArea.addEventListener('click', () => fileInput.click());
+dropArea.addEventListener('dragover', (e) => e.preventDefault());
+dropArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const files = e.dataTransfer.files;
+  if (files.length) handleFileUpload(files[0]);
+});
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length) handleFileUpload(e.target.files[0]);
+});
+
+async function handleFileUpload(file) {
+  const valid = ['video/mp4', 'video/quicktime', 'video/webm'];
+  if (!valid.includes(file.type)) { alert('Unsupported format'); return; }
+
+  uploadProgress.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressStatus.textContent = '0%';
+
+  const formData = new FormData();
+  formData.append('video', file);
+
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 5;
+    if (progress > 90) clearInterval(interval);
+    progressFill.style.width = progress + '%';
+    progressStatus.textContent = progress + '%';
+  }, 200);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/upload-video`, {
+      method: 'POST',
+      body: formData
+    });
+    clearInterval(interval);
+    if (!response.ok) throw new Error('Upload failed');
+    const result = await response.json();
+    await fetchVideos();
+    progressFill.style.width = '100%';
+    progressStatus.textContent = 'Complete!';
+    setTimeout(() => uploadProgress.style.display = 'none', 1000);
+  } catch (err) {
+    clearInterval(interval);
+    alert(err.message);
+    uploadProgress.style.display = 'none';
+  }
+}
+
+saveMetadataBtn.addEventListener('click', async () => {
+  const selectedId = uploadedVideos[0]?.id; // simplistic – you'd need to track selected video
+  if (!selectedId) return alert('Select a video first');
+  await fetch(`${API_BASE_URL}/videos/${selectedId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: videoTitle.value,
+      tags: videoTags.value,
+      description: videoDesc.value
+    })
+  });
+  alert('Metadata saved');
+});
+
+function renderLibrary() {
+  libraryGrid.innerHTML = '';
+  if (!uploadedVideos.length) {
+    libraryGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">No videos</p>';
+    return;
+  }
+  uploadedVideos.forEach(video => {
+    const item = document.createElement('div');
+    item.className = 'library-item';
+    item.innerHTML = `
+      <video src="${API_BASE_URL}/uploads/${video.filename}" muted></video>
+      <div class="info">
+        <p>${video.original_name.substring(0, 20)}...</p>
+        <small>${(video.size / 1e6).toFixed(2)} MB</small>
+      </div>
+    `;
+    item.addEventListener('click', () => {
+      previewPlayer.src = `${API_BASE_URL}/uploads/${video.filename}`;
+      videoTitle.value = video.title || video.original_name;
+      videoTags.value = video.tags || '';
+      videoDesc.value = video.description || '';
+      document.querySelector('[data-view="upload"]').click();
+    });
+    libraryGrid.appendChild(item);
+  });
+}
+
+// ==================== Live Stream ====================
+startBtn.addEventListener('click', async () => {
+  if ((!ytKey.value || !ytRtmpPrimary.value) && (!fbKey.value || !fbRtmp.value)) {
+    alert('Fill at least one platform configuration');
+    return;
+  }
+
+  const payload = {
+    title: streamTitle.value || 'Untitled',
+    description: streamDesc.value,
+    youtubeRtmpPrimary: ytEnable.checked ? ytRtmpPrimary.value : null,
+    youtubeRtmpBackup: ytEnable.checked ? ytRtmpBackup.value : null,
+    youtubeKey: ytEnable.checked ? ytKey.value : null,
+    facebookRtmp: fbEnable.checked ? fbRtmp.value : null,
+    facebookKey: fbEnable.checked ? fbKey.value : null,
+    schedule: scheduleTime.value,
+    loopMode: loopMode.value,
+    autoReconnect: autoReconnect.checked,
+    overlays: {
+      lowerThird: enableLowerThird.checked,
+      watermark: enableWatermark.checked,
+      countdown: enableCountdown.checked,
+      bgMusic: bgMusic.value
+    }
+  };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/start-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Start failed');
+    }
+    streamActive = true;
+    updateStreamUI(true);
+    startTimer();
+    if (uploadedVideos.length) livePreview.src = `${API_BASE_URL}/uploads/${uploadedVideos[uploadedVideos.length - 1].filename}`;
+    pollStreamStatus();
+    startAnalytics();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+stopBtn.addEventListener('click', async () => {
+  try {
+    await fetch(`${API_BASE_URL}/stop-stream`, { method: 'POST' });
+    streamActive = false;
+    updateStreamUI(false);
+    stopTimer();
+    livePreview.src = '';
+    fetchHistory();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+function updateStreamUI(active) {
+  if (active) {
+    globalStatusDot.className = 'status-dot online';
+    globalStatusText.textContent = 'Live';
+    streamStatusText.textContent = 'Live';
+    connectionStatus.textContent = 'Connected';
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    pauseBtn.disabled = false;
+  } else {
+    globalStatusDot.className = 'status-dot offline';
+    globalStatusText.textContent = 'Offline';
+    streamStatusText.textContent = 'Offline';
+    connectionStatus.textContent = 'Disconnected';
+    bitrateSpan.textContent = '0 kbps';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    pauseBtn.disabled = true;
+  }
+}
+
+function startTimer() {
+  streamSeconds = 0;
+  streamTimer = setInterval(() => {
+    streamSeconds++;
+    const h = Math.floor(streamSeconds / 3600);
+    const m = Math.floor((streamSeconds % 3600) / 60);
+    const s = streamSeconds % 60;
+    durationSpan.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }, 1000);
+}
+
+function stopTimer() { clearInterval(streamTimer); durationSpan.textContent = '00:00:00'; }
+
+async function pollStreamStatus() {
+  if (!streamActive) return;
+  try {
+    const res = await fetch(`${API_BASE_URL}/stream-status`);
+    const data = await res.json();
+    if (!data.active) {
+      streamActive = false;
+      updateStreamUI(false);
+      stopTimer();
+      livePreview.src = '';
+    } else {
+      bitrateSpan.textContent = Math.floor(2000 + Math.random() * 500) + ' kbps';
+      droppedFramesSpan.textContent = Math.floor(Math.random() * 10);
+      cpuUsageSpan.textContent = Math.floor(20 + Math.random() * 10) + '%';
+      viewersSpan.textContent = Math.floor(50 + Math.random() * 200);
+      latencySpan.textContent = (1 + Math.random()).toFixed(1) + 's';
+      fpsSpan.textContent = 30;
+      resolutionSpan.textContent = '1280x720';
+      setTimeout(pollStreamStatus, 5000);
+    }
+  } catch { setTimeout(pollStreamStatus, 5000); }
+}
+
+// Aspect ratio toggles
+aspectBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    aspectBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const aspect = btn.dataset.aspect;
+    if (aspect === '16:9') videoWrapper.style.paddingTop = '56.25%';
+    else if (aspect === '9:16') videoWrapper.style.paddingTop = '177.78%';
+    else if (aspect === '1:1') videoWrapper.style.paddingTop = '100%';
+    else if (aspect === '4:5') videoWrapper.style.paddingTop = '125%';
+    else if (aspect === 'fill') videoWrapper.style.paddingTop = '0';
+  });
+});
+
+// ==================== History ====================
+function renderHistory(history) {
+  historyBody.innerHTML = '';
+  history.forEach(e => {
+    const row = document.createElement('tr');
+    const date = new Date(e.date).toLocaleString();
+    const duration = e.duration ? `${Math.floor(e.duration / 60)}:${(e.duration % 60).toString().padStart(2, '0')}` : '00:00';
+    row.innerHTML = `<td>${e.title}</td><td>${date}</td><td>${duration}</td><td>${e.platform}</td><td>${e.status}</td>`;
+    historyBody.appendChild(row);
+  });
+}
+
+// ==================== Playlists ====================
+newPlaylistBtn.addEventListener('click', () => {
+  const name = prompt('Playlist name:');
+  if (name) {
+    playlists.push({ name, videos: [] });
+    renderPlaylists();
+  }
+});
+
+function renderPlaylists() {
+  playlistGrid.innerHTML = '';
+  playlists.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'playlist-card';
+    div.innerHTML = `<strong>${p.name}</strong><br>${p.videos.length} videos`;
+    playlistGrid.appendChild(div);
+  });
+}
+
+// ==================== Analytics ====================
+function startAnalytics() {
+  if (!viewersChart) {
+    const ctx1 = document.getElementById('viewersChart').getContext('2d');
+    viewersChart = new Chart(ctx1, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Viewers', data: [], borderColor: '#ff0000' }] },
+      options: { responsive: true }
+    });
+    const ctx2 = document.getElementById('bitrateChart').getContext('2d');
+    bitrateChart = new Chart(ctx2, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Bitrate (kbps)', data: [], borderColor: '#ff0000' }] },
+      options: { responsive: true }
+    });
+  }
+  setInterval(() => {
+    if (!streamActive) return;
+    const time = new Date().toLocaleTimeString();
+    viewersChart.data.labels.push(time);
+    viewersChart.data.datasets[0].data.push(Math.floor(50 + Math.random() * 200));
+    if (viewersChart.data.labels.length > 10) {
+      viewersChart.data.labels.shift();
+      viewersChart.data.datasets[0].data.shift();
+    }
+    viewersChart.update();
+
+    bitrateChart.data.labels.push(time);
+    bitrateChart.data.datasets[0].data.push(Math.floor(2000 + Math.random() * 500));
+    if (bitrateChart.data.labels.length > 10) {
+      bitrateChart.data.labels.shift();
+      bitrateChart.data.datasets[0].data.shift();
+    }
+    bitrateChart.update();
+  }, 5000);
+}
+
+// ==================== Settings ====================
+if (localStorage.getItem('resolution')) defaultResolution.value = localStorage.getItem('resolution');
+if (localStorage.getItem('bitrate')) defaultBitrate.value = localStorage.getItem('bitrate');
+if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem('encoder');
+
+toggleThemeBtn.addEventListener('click', () => document.body.classList.toggle('light-theme'));
+
+// ==================== Initial ====================
+fetchVideos();
+fetchHistory();
