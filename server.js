@@ -172,23 +172,32 @@ app.post('/start-stream', async (req, res) => {
   if (files.length === 0) return res.status(400).json({ error: 'No video uploaded' });
   const videoFile = path.join(uploadDir, files[files.length - 1]);
 
-  const processes = [];
+    const processes = [];
 
   if (youtubeKey && youtubeRtmpPrimary) {
     const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
+    // YouTube primary stream with optimised settings
     const proc1 = spawn('ffmpeg', [
       '-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
-      '-c:a', 'aac', '-f', 'flv', primaryUrl
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
+      '-vf', 'scale=1280:720',         // optional: force 720p
+      '-c:a', 'aac', '-b:a', '128k',
+      '-threads', '2',
+      '-f', 'flv', primaryUrl
     ]);
     proc1.stderr.on('data', d => console.log(`YT Primary: ${d}`));
     processes.push(proc1);
 
     if (youtubeRtmpBackup) {
       const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
-      const proc2 = spawn('ffmpeg', ['-re', '-i', videoFile,
-        '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
-        '-c:a', 'aac', '-f', 'flv', backupUrl
+      // YouTube backup stream with same optimised settings
+      const proc2 = spawn('ffmpeg', [
+        '-re', '-i', videoFile,
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
+        '-vf', 'scale=1280:720',
+        '-c:a', 'aac', '-b:a', '128k',
+        '-threads', '2',
+        '-f', 'flv', backupUrl
       ]);
       proc2.stderr.on('data', d => console.log(`YT Backup: ${d}`));
       processes.push(proc2);
@@ -197,9 +206,14 @@ app.post('/start-stream', async (req, res) => {
 
   if (facebookKey && facebookRtmp) {
     const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
-    const procFb = spawn('ffmpeg', ['-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
-      '-c:a', 'aac', '-f', 'flv', fbUrl
+    // Facebook stream with optimised settings
+    const procFb = spawn('ffmpeg', [
+      '-re', '-i', videoFile,
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
+      '-vf', 'scale=1280:720',
+      '-c:a', 'aac', '-b:a', '128k',
+      '-threads', '2',
+      '-f', 'flv', fbUrl
     ]);
     procFb.stderr.on('data', d => console.log(`FB: ${d}`));
     processes.push(procFb);
