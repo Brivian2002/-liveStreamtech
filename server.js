@@ -10,7 +10,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// PostgreSQL connection – using your new database URL
+// PostgreSQL connection – your Render database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://livestream_db_4aqo_user:luoyaV0L5PGvxdjfa2EdIpCpri1Yr3tX@dpg-d6sk2g15pdvs73dsktig-a.oregon-postgres.render.com/livestream_db_4aqo',
   ssl: { rejectUnauthorized: false }
@@ -143,6 +143,7 @@ app.delete('/videos/:id', async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
   try {
+    // Get filename to delete from disk
     const fileRes = await client.query('SELECT filename FROM videos WHERE id = $1', [id]);
     if (fileRes.rows.length) {
       const filePath = path.join(uploadDir, fileRes.rows[0].filename);
@@ -277,7 +278,7 @@ app.get('/stream-history', async (req, res) => {
   }
 });
 
-// Mock preview
+// Mock preview (latest video)
 app.get('/preview', (req, res) => {
   const files = fs.readdirSync(uploadDir);
   if (files.length) {
