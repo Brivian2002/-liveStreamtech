@@ -4,7 +4,7 @@ let playlists = [];
 let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
-// Permanent API endpoint – using Render URL
+// Permanent API endpoint – your Render URL
 const apiBaseUrl = 'https://livestreamtech.onrender.com'; // Replace with your actual Render URL
 
 // DOM Elements
@@ -159,7 +159,6 @@ async function deleteVideo(videoId) {
       method: 'DELETE'
     });
     if (res.ok) {
-      // Remove from local array and re-render
       uploadedVideos = uploadedVideos.filter(v => v.id !== videoId);
       renderLibrary();
       updateStats();
@@ -186,16 +185,12 @@ async function cleanupOldVideos() {
         console.log(`Deleted old video: ${video.original_name}`);
       }
     }
-    // Refresh list
     fetchVideos();
   } catch (err) {
     console.error('Auto-cleanup error:', err);
   }
 }
-
-// Run cleanup every 24 hours (86400000 ms)
 setInterval(cleanupOldVideos, 86400000);
-// Also run on page load
 cleanupOldVideos();
 
 // ==================== Navigation ====================
@@ -275,7 +270,6 @@ async function handleFileUpload(file) {
     progressFill.style.width = '100%';
     progressStatus.textContent = 'Complete!';
     setTimeout(() => uploadProgress.style.display = 'none', 1000);
-    // Show toast after first upload
     showAutoDeleteToast();
   } catch (err) {
     clearInterval(interval);
@@ -285,7 +279,7 @@ async function handleFileUpload(file) {
 }
 
 saveMetadataBtn.addEventListener('click', async () => {
-  const selectedId = uploadedVideos[0]?.id; // simplistic – you'd need to track selected video
+  const selectedId = uploadedVideos[0]?.id;
   if (!selectedId) return alert('Select a video first');
   await fetch(`${apiBaseUrl}/videos/${selectedId}`, {
     method: 'PUT',
@@ -316,7 +310,6 @@ function renderLibrary() {
       </div>
       <button class="delete-video-btn" data-id="${video.id}"><i class="fas fa-trash"></i></button>
     `;
-    // Video click to preview
     item.querySelector('video').addEventListener('click', (e) => {
       e.stopPropagation();
       previewPlayer.src = `${apiBaseUrl}/uploads/${video.filename}`;
@@ -325,7 +318,6 @@ function renderLibrary() {
       videoDesc.value = video.description || '';
       document.querySelector('[data-view="upload"]').click();
     });
-    // Delete button
     const deleteBtn = item.querySelector('.delete-video-btn');
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -537,12 +529,10 @@ function startAnalytics() {
 // ==================== Settings ====================
 toggleThemeBtn.addEventListener('click', () => document.body.classList.toggle('light-theme'));
 
-// Load saved settings
 if (localStorage.getItem('resolution')) defaultResolution.value = localStorage.getItem('resolution');
 if (localStorage.getItem('bitrate')) defaultBitrate.value = localStorage.getItem('bitrate');
 if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem('encoder');
 
-// Save settings
 defaultResolution.addEventListener('change', () => localStorage.setItem('resolution', defaultResolution.value));
 defaultBitrate.addEventListener('change', () => localStorage.setItem('bitrate', defaultBitrate.value));
 defaultEncoder.addEventListener('change', () => localStorage.setItem('encoder', defaultEncoder.value));
@@ -550,5 +540,4 @@ defaultEncoder.addEventListener('change', () => localStorage.setItem('encoder', 
 // ==================== Initial ====================
 fetchVideos();
 fetchHistory();
-// Show toast if there are videos (optional)
 if (uploadedVideos.length) showAutoDeleteToast();
