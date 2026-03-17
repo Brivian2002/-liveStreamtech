@@ -10,16 +10,16 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// PostgreSQL connection using environment variable
+// PostgreSQL connection from environment variable
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Render requires SSL
+  ssl: { rejectUnauthorized: false } // Required for Render
 });
 
-// Test DB connection
+// Test database connection
 pool.connect((err, client, release) => {
   if (err) {
-    console.error('Error connecting to PostgreSQL:', err.stack);
+    console.error('Database connection error:', err.stack);
   } else {
     console.log('Connected to PostgreSQL database');
     release();
@@ -42,13 +42,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB max
 });
 
 // In‑memory active stream object
 let activeStream = null;
 
-// ========== Database setup ==========
+// ========== Database Setup ==========
 const createTables = async () => {
   const client = await pool.connect();
   try {
@@ -72,7 +72,7 @@ const createTables = async () => {
         status TEXT
       );
     `);
-    console.log('Database tables ensured');
+    console.log('Database tables created or verified');
   } catch (err) {
     console.error('Error creating tables:', err);
   } finally {
@@ -169,12 +169,14 @@ app.post('/start-stream', async (req, res) => {
     loopMode, autoReconnect, overlays
   } = req.body;
 
+  // Find the latest video file
   const files = fs.readdirSync(uploadDir);
   if (files.length === 0) return res.status(400).json({ error: 'No video uploaded' });
   const videoFile = path.join(uploadDir, files[files.length - 1]);
 
   const processes = [];
 
+  // YouTube streams
   if (youtubeKey && youtubeRtmpPrimary) {
     const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
     const proc1 = spawn('ffmpeg', [
@@ -187,7 +189,8 @@ app.post('/start-stream', async (req, res) => {
 
     if (youtubeRtmpBackup) {
       const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
-      const proc2 = spawn('ffmpeg', ['-re', '-i', videoFile,
+      const proc2 = spawn('ffmpeg', [
+        '-re', '-i', videoFile,
         '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
         '-c:a', 'aac', '-f', 'flv', backupUrl
       ]);
@@ -196,9 +199,11 @@ app.post('/start-stream', async (req, res) => {
     }
   }
 
+  // Facebook stream
   if (facebookKey && facebookRtmp) {
     const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
-    const procFb = spawn('ffmpeg', ['-re', '-i', videoFile,
+    const procFb = spawn('ffmpeg', [
+      '-re', '-i', videoFile,
       '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
       '-c:a', 'aac', '-f', 'flv', fbUrl
     ]);
@@ -279,13 +284,13 @@ app.get('/stream-history', async (req, res) => {
   }
 });
 
-// Mock preview
+// Preview (last uploaded video)
 app.get('/preview', (req, res) => {
   const files = fs.readdirSync(uploadDir);
   if (files.length) {
     res.sendFile(path.join(uploadDir, files[files.length - 1]));
   } else {
-    res.status(404).send('No preview');
+    res.status(404).send('No preview available');
   }
 });
 
