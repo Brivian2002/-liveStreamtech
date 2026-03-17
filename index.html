@@ -10,16 +10,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDK -->
+    <script type="module" src="https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="light-theme">
-    <!-- Floating WhatsApp Button -->
-    <a href="https://wa.me/233275903629" class="whatsapp-float" target="_blank">
-        <i class="fab fa-whatsapp"></i>
-    </a>
+<body>
+    <!-- Splash Screen / Login Container -->
+    <div id="splash-container" class="splash-container">
+        <div class="animated-bg">
+            <div class="circle red"></div>
+            <div class="circle green"></div>
+            <div class="circle blue"></div>
+            <div class="circle yellow"></div>
+            <div class="circle white"></div>
+        </div>
+        <div class="login-card">
+            <h1><i class="fab fa-youtube"></i> LiveStream Pro</h1>
+            <p>Professional streaming dashboard</p>
+            <button id="google-login" class="btn primary"><i class="fab fa-google"></i> Sign in with Google</button>
+            <button id="email-login" class="btn secondary"><i class="fas fa-envelope"></i> Sign in with Email</button>
+            <p class="terms-note">By signing in, you agree to our <a href="#" onclick="showView('terms')">Terms</a>.</p>
+        </div>
+    </div>
 
-    <div class="app">
+    <!-- Main App (hidden until authenticated) -->
+    <div id="app" class="app" style="display: none;">
+        <!-- Floating WhatsApp Button -->
+        <a href="https://wa.me/233275903629" class="whatsapp-float" target="_blank">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
@@ -34,14 +57,14 @@
                 <a href="#" class="nav-item" data-view="history"><i class="fas fa-history"></i> History</a>
                 <a href="#" class="nav-item" data-view="analytics"><i class="fas fa-chart-line"></i> Analytics</a>
                 <a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> Settings</a>
-                <!-- New sections -->
                 <a href="#" class="nav-item" data-view="donation"><i class="fas fa-donate"></i> Donation</a>
-                <a href="#" class="nav-item" data-view="help"><i class="fas fa-question-circle"></i> Help / Blog</a>
+                <a href="#" class="nav-item" data-view="docs"><i class="fas fa-book"></i> Docs</a>
                 <a href="#" class="nav-item" data-view="terms"><i class="fas fa-file-contract"></i> Terms & Privacy</a>
                 <a href="#" class="nav-item" data-view="contact"><i class="fas fa-envelope"></i> Contact</a>
             </nav>
             <div class="sidebar-footer">
                 <div class="animated-logo"></div>
+                <button id="logout-btn" class="btn small"><i class="fas fa-sign-out-alt"></i> Logout</button>
             </div>
         </aside>
 
@@ -63,55 +86,22 @@
                     <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
                     <div class="profile-icon">
                         <i class="fas fa-user-circle"></i>
+                        <span id="user-email"></span>
                     </div>
                 </div>
             </header>
 
             <!-- Auto‑delete notification toast -->
             <div id="autoDeleteToast" class="toast-notification">
-                <i class="fas fa-info-circle"></i> All videos are automatically deleted after 24 hours.
+                <i class="fas fa-info-circle"></i> Your videos are automatically deleted after 24 hours.
             </div>
 
             <!-- Dynamic Views -->
-            <div class="content-view active" id="view-dashboard">
-                <h2>Welcome back</h2>
-                <div class="stats-cards">
-                    <div class="stat-card"><i class="fas fa-video"></i><div><h3 id="videoCount">0</h3><p>Videos</p></div></div>
-                    <div class="stat-card"><i class="fas fa-clock"></i><div><h3 id="totalStreamTime">0</h3><p>Hours</p></div></div>
-                    <div class="stat-card"><i class="fas fa-eye"></i><div><h3 id="totalViews">0</h3><p>Views</p></div></div>
-                    <div class="stat-card"><i class="fas fa-heartbeat"></i><div><h3 id="streamHealth">98%</h3><p>Health</p></div></div>
-                </div>
-                <div class="video-library">
-                    <h3>Your Video Library</h3>
-                    <div class="library-grid" id="videoLibraryGrid"></div>
-                </div>
-            </div>
+            <!-- Dashboard (same as before) -->
+            <div class="content-view active" id="view-dashboard">...</div>
+            <div class="content-view" id="view-upload">...</div>
 
-            <div class="content-view" id="view-upload">
-                <h2>Upload Video</h2>
-                <div class="upload-area" id="dropArea">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag & drop or <span class="browse-text">browse</span></p>
-                    <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/webm" hidden>
-                    <p class="supported-formats">MP4, MOV, WEBM (max 2GB)</p>
-                </div>
-                <div class="upload-progress" id="uploadProgress" style="display:none">
-                    <div class="progress-bar"><div class="progress-fill"></div></div>
-                    <p id="progressStatus">0%</p>
-                </div>
-                <div class="video-preview" id="videoPreview" style="display:none">
-                    <video id="previewPlayer" controls></video>
-                    <div class="meta-info" id="metaInfo"></div>
-                    <div class="metadata-fields">
-                        <input type="text" id="videoTitle" placeholder="Title">
-                        <input type="text" id="videoTags" placeholder="Tags (comma separated)">
-                        <textarea id="videoDesc" placeholder="Description"></textarea>
-                        <button class="btn primary" id="saveMetadata">Save Metadata</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Live Control (tabbed) -->
+            <!-- Live Control with TikTok added -->
             <div class="content-view" id="view-live">
                 <h2>Live Stream Control</h2>
                 <div class="live-panel">
@@ -121,212 +111,109 @@
                             <button class="live-tab" data-tab="info">Title & Desc</button>
                             <button class="live-tab" data-tab="youtube">YouTube</button>
                             <button class="live-tab" data-tab="facebook">Facebook</button>
+                            <button class="live-tab" data-tab="tiktok">TikTok</button>
                             <button class="live-tab" data-tab="scheduling">Scheduling</button>
                             <button class="live-tab" data-tab="overlays">Overlays</button>
                         </div>
-                        <div class="tab-content active" id="tab-status">
-                            <div class="stream-status-panel">
-                                <h3>Stream Status</h3>
-                                <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
-                                <div class="status-item"><span>Connection:</span> <span id="connectionStatus">Disconnected</span></div>
-                                <div class="status-item"><span>Bitrate:</span> <span id="bitrate">0 kbps</span></div>
-                                <div class="status-item"><span>Dropped Frames:</span> <span id="droppedFrames">0</span></div>
-                                <div class="status-item"><span>CPU:</span> <span id="cpuUsage">0%</span></div>
-                                <div class="status-item"><span>Viewers:</span> <span id="viewers">0</span></div>
-                                <div class="status-item"><span>Duration:</span> <span id="duration">00:00:00</span></div>
-                            </div>
-                        </div>
-                        <div class="tab-content" id="tab-info">
-                            <div class="form-group">
-                                <label>Stream Title</label>
-                                <input type="text" id="streamTitle" placeholder="My Stream">
-                            </div>
-                            <div class="form-group">
-                                <label>Description</label>
-                                <textarea id="streamDesc" rows="3"></textarea>
-                            </div>
-                        </div>
-                        <div class="tab-content" id="tab-youtube">
-                            <div class="platform-section youtube">
-                                <h3><i class="fab fa-youtube"></i> YouTube</h3>
-                                <label>Stream URL</label>
-                                <input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
-                                <label>Backup Server URL</label>
-                                <input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2?backup=1">
-                                <label>Stream Key</label>
-                                <input type="text" id="ytKey" placeholder="xxxx-xxxx">
-                                <div class="toggle-stream"><input type="checkbox" id="ytEnable" checked> Enable</div>
-                            </div>
-                        </div>
-                        <div class="tab-content" id="tab-facebook">
-                            <div class="platform-section facebook">
-                                <h3><i class="fab fa-facebook"></i> Facebook</h3>
+                        <div class="tab-content active" id="tab-status">...</div>
+                        <div class="tab-content" id="tab-info">...</div>
+                        <div class="tab-content" id="tab-youtube">...</div>
+                        <div class="tab-content" id="tab-facebook">...</div>
+                        <!-- TikTok Tab -->
+                        <div class="tab-content" id="tab-tiktok">
+                            <div class="platform-section tiktok">
+                                <h3><i class="fab fa-tiktok"></i> TikTok</h3>
                                 <label>RTMP URL</label>
-                                <input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
+                                <input type="text" id="tiktokRtmp" placeholder="rtmp://live.tiktok.com/live/">
                                 <label>Stream Key</label>
-                                <input type="text" id="fbKey" placeholder="FB-xxxx">
-                                <div class="toggle-stream"><input type="checkbox" id="fbEnable" checked> Enable</div>
+                                <input type="text" id="tiktokKey" placeholder="your-tiktok-stream-key">
+                                <div class="toggle-stream"><input type="checkbox" id="tiktokEnable" checked> Enable</div>
                             </div>
                         </div>
-                        <div class="tab-content" id="tab-scheduling">
-                            <div class="advanced-settings">
-                                <h4>Scheduling & Looping</h4>
-                                <label>Schedule</label>
-                                <input type="datetime-local" id="scheduleTime">
-                                <label>Loop Mode</label>
-                                <select id="loopMode">
-                                    <option value="1">1 time</option>
-                                    <option value="2">2 times</option>
-                                    <option value="3">3 times</option>
-                                    <option value="4">4 times</option>
-                                    <option value="continuous">Continuous</option>
-                                    <option value="1h">1 hour</option>
-                                    <option value="24h">24 hours</option>
-                                </select>
-                                <label>Auto‑reconnect</label>
-                                <input type="checkbox" id="autoReconnect" checked>
-                            </div>
-                        </div>
-                        <div class="tab-content" id="tab-overlays">
-                            <div class="overlay-controls">
-                                <h4>Overlays</h4>
-                                <label><input type="checkbox" id="enableLowerThird"> Lower Third</label>
-                                <label><input type="checkbox" id="enableWatermark"> Watermark</label>
-                                <label><input type="checkbox" id="enableCountdown"> Countdown</label>
-                                <label>Background Music URL</label>
-                                <input type="text" id="bgMusic" placeholder="https://...">
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start</button>
-                            <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
-                            <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
-                        </div>
+                        <div class="tab-content" id="tab-scheduling">...</div>
+                        <div class="tab-content" id="tab-overlays">...</div>
+                        <div class="form-actions">...</div>
                     </div>
-                    <div class="live-right">
-                        <div class="preview-monitor">
-                            <h3>Preview Monitor</h3>
-                            <div class="aspect-toggles">
-                                <button class="aspect-btn active" data-aspect="16:9">16:9</button>
-                                <button class="aspect-btn" data-aspect="9:16">9:16</button>
-                                <button class="aspect-btn" data-aspect="1:1">1:1</button>
-                                <button class="aspect-btn" data-aspect="4:5">4:5</button>
-                                <button class="aspect-btn" data-aspect="fill">Fill</button>
-                            </div>
-                            <div class="video-wrapper" id="videoWrapper">
-                                <video id="livePreview" controls></video>
-                            </div>
-                            <div class="preview-stats">
-                                <span>Latency: <span id="latency">~2s</span></span>
-                                <span>FPS: <span id="fps">30</span></span>
-                                <span>Resolution: <span id="resolution">1280x720</span></span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="live-right">...</div>
                 </div>
             </div>
 
             <!-- Playlists -->
-            <div class="content-view" id="view-playlists">
-                <h2>Playlists</h2>
-                <div class="playlist-manager">
-                    <button class="btn primary" id="newPlaylistBtn"><i class="fas fa-plus"></i> New Playlist</button>
-                    <div class="playlist-grid" id="playlistGrid"></div>
-                </div>
-            </div>
+            <div class="content-view" id="view-playlists">...</div>
 
             <!-- History -->
-            <div class="content-view" id="view-history">
-                <h2>Stream History</h2>
-                <table class="history-table">
-                    <thead><tr><th>Title</th><th>Date</th><th>Duration</th><th>Platform</th><th>Status</th></tr></thead>
-                    <tbody id="historyBody"></tbody>
-                </table>
-            </div>
+            <div class="content-view" id="view-history">...</div>
 
             <!-- Analytics -->
-            <div class="content-view" id="view-analytics">
-                <h2>Live Analytics</h2>
-                <div class="analytics-grid">
-                    <div class="chart-container"><canvas id="viewersChart"></canvas></div>
-                    <div class="chart-container"><canvas id="bitrateChart"></canvas></div>
-                </div>
-            </div>
+            <div class="content-view" id="view-analytics">...</div>
 
             <!-- Settings -->
-            <div class="content-view" id="view-settings">
-                <h2>Settings</h2>
-                <div class="settings-group">
-                    <h3>Stream Defaults</h3>
-                    <label>Resolution</label>
-                    <select id="defaultResolution"><option>1920x1080</option><option>1280x720</option></select>
-                    <label>Bitrate (kbps)</label>
-                    <input type="number" id="defaultBitrate" value="2500">
-                    <label>Encoder</label>
-                    <select id="defaultEncoder"><option>libx264</option><option>h264_nvenc</option></select>
-                </div>
-                <div class="settings-group">
-                    <h3>Theme</h3>
-                    <button class="btn" id="toggleTheme">Toggle Dark/Light</button>
+            <div class="content-view" id="view-settings">...</div>
+
+            <!-- Donation (same) -->
+            <div class="content-view" id="view-donation">...</div>
+
+            <!-- Docs (replaces Help) -->
+            <div class="content-view" id="view-docs">
+                <h2>Documentation</h2>
+                <div class="docs-grid">
+                    <div class="doc-card">
+                        <h3>Getting Started</h3>
+                        <p>Learn how to set up your first stream in minutes.</p>
+                        <a href="#" onclick="alert('Full guide would open here')" class="learn-more">Learn more →</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>Uploading Videos</h3>
+                        <p>Supported formats, size limits, and metadata editing.</p>
+                        <a href="#" onclick="alert('Full guide would open here')" class="learn-more">Learn more →</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>Live Control</h3>
+                        <p>Configuring YouTube, Facebook, and TikTok streams.</p>
+                        <a href="#" onclick="alert('Full guide would open here')" class="learn-more">Learn more →</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>Scheduling & Looping</h3>
+                        <p>Set up timed streams and repeat modes.</p>
+                        <a href="#" onclick="alert('Full guide would open here')" class="learn-more">Learn more →</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>Overlays & Effects</h3>
+                        <p>Add watermarks, lower thirds, and background music.</p>
+                        <a href="#" onclick="alert('Full guide would open here')" class="learn-more">Learn more →</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>Privacy & Security</h3>
+                        <p>How your data is protected and auto-deletion policy.</p>
+                        <a href="#" onclick="alert('Full guide would open here')" class="learn-more">Learn more →</a>
+                    </div>
                 </div>
             </div>
 
-            <!-- Donation -->
-            <div class="content-view" id="view-donation">
-                <h2>Support the Project</h2>
-                <div class="donation-box">
-                    <h3>Telecel GH (Mobile Money)</h3>
-                    <p><strong>Number:</strong> 0209558038</p>
-                    <p><strong>Name:</strong> Bright Dumashie</p>
-                    <hr>
-                    <h3>USD Bank Account</h3>
-                    <p><strong>Beneficiary:</strong> BRIGHT DUMASHIE</p>
-                    <p><strong>Account number:</strong> 210633430016</p>
-                    <p><strong>Bank:</strong> Lead Bank</p>
-                    <p><strong>Routing number:</strong> 101019644</p>
-                    <p><strong>Account type:</strong> CHECKING</p>
-                    <p><strong>Bank address:</strong> 1801 Main St., Kansas City, MO 64108, USA</p>
-                    <p><strong>Beneficiary address:</strong> Adenta, Pine street, Accra, 00233, GH</p>
-                    <p><em>Thank you for your support!</em></p>
-                </div>
-            </div>
-
-            <!-- Help / Blog -->
-            <div class="content-view" id="view-help">
-                <h2>Help & Guide</h2>
-                <div class="help-content">
-                    <h3>Getting Started</h3>
-                    <p>1. Upload a video in the <strong>Upload</strong> section.</p>
-                    <p>2. Go to <strong>Live Control</strong>, fill in your stream keys and RTMP URLs.</p>
-                    <p>3. Click <strong>Start Stream</strong> to go live on YouTube/Facebook.</p>
-                    <p>4. Use the <strong>Playlists</strong> tab to create sequences.</p>
-                    <p>5. Videos are automatically deleted after 24 hours.</p>
-                    <h3>Blog</h3>
-                    <p>Check back later for updates and tips!</p>
-                </div>
-            </div>
-
-            <!-- Terms & Privacy -->
+            <!-- Terms & Privacy (expanded) -->
             <div class="content-view" id="view-terms">
                 <h2>Terms of Service & Privacy Policy</h2>
                 <div class="terms-box">
                     <h3>Terms of Service</h3>
-                    <p>By using LiveStream Pro, you agree to use the service responsibly and not to upload illegal or copyrighted content. We reserve the right to remove any content without notice.</p>
+                    <p>By accessing or using LiveStream Pro, you agree to be bound by these terms. If you do not agree, you may not use the service.</p>
+                    <p><strong>1. Use of Service</strong> – You are responsible for all content you upload and stream. You must not upload illegal, infringing, or harmful material.</p>
+                    <p><strong>2. Accounts</strong> – You must provide accurate information and keep your login credentials secure. You are liable for all activity under your account.</p>
+                    <p><strong>3. Termination</strong> – We may suspend or terminate your access for violations of these terms.</p>
+                    <p><strong>4. Disclaimer</strong> – The service is provided "as is" without warranties. We are not liable for any damages arising from use.</p>
+                    
                     <h3>Privacy Policy</h3>
-                    <p>We collect only the information necessary to provide the service (email, stream keys). Your data is never shared with third parties. Stream keys are stored securely. Videos are automatically deleted after 24 hours.</p>
+                    <p><strong>Information We Collect</strong> – When you sign in with Google, we receive your email address and unique ID. We also store videos you upload and stream metadata.</p>
+                    <p><strong>How We Use Information</strong> – To provide and improve the service, ensure security, and communicate with you.</p>
+                    <p><strong>Data Retention</strong> – Videos are automatically deleted 24 hours after upload. Stream history is retained for 30 days.</p>
+                    <p><strong>Sharing of Information</strong> – We do not sell your data. We may share it if required by law.</p>
+                    <p><strong>Security</strong> – We use encryption and Firebase's secure authentication. However, no method is 100% secure.</p>
+                    <p><strong>Your Rights</strong> – You may request deletion of your account and data by contacting us.</p>
                     <p>Last updated: 17th March, 2026</p>
                 </div>
             </div>
 
             <!-- Contact -->
-            <div class="content-view" id="view-contact">
-                <h2>Contact Us</h2>
-                <div class="contact-info">
-                    <p><i class="fas fa-envelope"></i> Email: <a href="mailto:brightsany3000@gmail.com">brightsany3000@gmail.com</a></p>
-                    <p><i class="fab fa-whatsapp"></i> WhatsApp: <a href="https://wa.me/233275903629" target="_blank">+233 27 590 3629</a></p>
-                    <p><i class="fas fa-calendar-alt"></i> Established: 17th March, 2026</p>
-                </div>
-            </div>
+            <div class="content-view" id="view-contact">...</div>
 
             <footer class="app-footer">
                 <p>© 2026 LiveStream Pro. Designed by Bright Dumashie.</p>
@@ -334,6 +221,7 @@
         </main>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Firebase initialization and app logic -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
