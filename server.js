@@ -10,16 +10,15 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// PostgreSQL connection from environment variable
+// PostgreSQL connection – using your new database URL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Required for Render
+  connectionString: process.env.DATABASE_URL || 'postgresql://livestream_db_4aqo_user:luoyaV0L5PGvxdjfa2EdIpCpri1Yr3tX@dpg-d6sk2g15pdvs73dsktig-a.oregon-postgres.render.com/livestream_db_4aqo',
+  ssl: { rejectUnauthorized: false }
 });
 
-// Test database connection
 pool.connect((err, client, release) => {
   if (err) {
-    console.error('Database connection error:', err.stack);
+    console.error('Error connecting to PostgreSQL:', err.stack);
   } else {
     console.log('Connected to PostgreSQL database');
     release();
@@ -35,20 +34,20 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// Multer configuration for video uploads
+// Multer configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB max
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB
 });
 
-// In‑memory active stream object
+// In‑memory active stream
 let activeStream = null;
 
-// ========== Database Setup ==========
+// ========== Database setup ==========
 const createTables = async () => {
   const client = await pool.connect();
   try {
@@ -72,7 +71,7 @@ const createTables = async () => {
         status TEXT
       );
     `);
-    console.log('Database tables created or verified');
+    console.log('Database tables ensured');
   } catch (err) {
     console.error('Error creating tables:', err);
   } finally {
@@ -86,7 +85,6 @@ createTables();
 // Upload video
 app.post('/upload-video', upload.single('video'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-
   const { filename, originalname, size } = req.file;
   const client = await pool.connect();
   try {
@@ -169,14 +167,12 @@ app.post('/start-stream', async (req, res) => {
     loopMode, autoReconnect, overlays
   } = req.body;
 
-  // Find the latest video file
   const files = fs.readdirSync(uploadDir);
   if (files.length === 0) return res.status(400).json({ error: 'No video uploaded' });
   const videoFile = path.join(uploadDir, files[files.length - 1]);
 
   const processes = [];
 
-  // YouTube streams
   if (youtubeKey && youtubeRtmpPrimary) {
     const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
     const proc1 = spawn('ffmpeg', [
@@ -189,8 +185,7 @@ app.post('/start-stream', async (req, res) => {
 
     if (youtubeRtmpBackup) {
       const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
-      const proc2 = spawn('ffmpeg', [
-        '-re', '-i', videoFile,
+      const proc2 = spawn('ffmpeg', ['-re', '-i', videoFile,
         '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
         '-c:a', 'aac', '-f', 'flv', backupUrl
       ]);
@@ -199,11 +194,9 @@ app.post('/start-stream', async (req, res) => {
     }
   }
 
-  // Facebook stream
   if (facebookKey && facebookRtmp) {
     const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
-    const procFb = spawn('ffmpeg', [
-      '-re', '-i', videoFile,
+    const procFb = spawn('ffmpeg', ['-re', '-i', videoFile,
       '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2500k',
       '-c:a', 'aac', '-f', 'flv', fbUrl
     ]);
@@ -284,13 +277,13 @@ app.get('/stream-history', async (req, res) => {
   }
 });
 
-// Preview (last uploaded video)
+// Mock preview
 app.get('/preview', (req, res) => {
   const files = fs.readdirSync(uploadDir);
   if (files.length) {
     res.sendFile(path.join(uploadDir, files[files.length - 1]));
   } else {
-    res.status(404).send('No preview available');
+    res.status(404).send('No preview');
   }
 });
 
