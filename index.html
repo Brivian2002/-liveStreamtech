@@ -7,22 +7,18 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js for analytics -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="light-theme">
     <div class="app">
-        <!-- Sidebar (Mac‑inspired) -->
+        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
-                <div class="three-dots">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
-                </div>
+                <i class="fab fa-youtube" style="color:#ff0000;"></i>
                 <span>LiveStream Pro</span>
             </div>
             <nav class="nav-menu">
@@ -44,7 +40,6 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Top Bar with internet speed and status -->
             <header class="navbar">
                 <div class="navbar-left">
                     <h2 id="page-title">Dashboard</h2>
@@ -66,7 +61,6 @@
             </header>
 
             <!-- Dynamic Views -->
-            <!-- Dashboard -->
             <div class="content-view active" id="view-dashboard">
                 <h2>Welcome back, Creator</h2>
                 <div class="stats-cards">
@@ -81,7 +75,6 @@
                 </div>
             </div>
 
-            <!-- Upload Video (with metadata) -->
             <div class="content-view" id="view-upload">
                 <h2>Upload Video</h2>
                 <div class="upload-area" id="dropArea">
@@ -106,13 +99,11 @@
                 </div>
             </div>
 
-            <!-- Live Control – advanced panel -->
             <div class="content-view" id="view-live">
                 <h2>Live Stream Control</h2>
                 <div class="live-panel">
                     <div class="live-left">
                         <div class="stream-form">
-                            <!-- Basic Info -->
                             <div class="form-group">
                                 <label>Stream Title</label>
                                 <input type="text" id="streamTitle" placeholder="My Stream">
@@ -121,7 +112,7 @@
                                 <label>Description</label>
                                 <textarea id="streamDesc" rows="2"></textarea>
                             </div>
-                            <!-- YouTube Section with custom URLs -->
+                            <!-- YouTube Section -->
                             <div class="platform-section youtube">
                                 <h3><i class="fab fa-youtube"></i> YouTube</h3>
                                 <label>Stream URL</label>
@@ -188,11 +179,10 @@
                         </div>
                     </div>
                     <div class="live-right">
-                        <!-- Preview Monitor with aspect toggles -->
                         <div class="preview-monitor">
                             <h3>Preview Monitor</h3>
                             <div class="aspect-toggles">
-                                <button class="aspect-btn" data-aspect="16:9">16:9</button>
+                                <button class="aspect-btn active" data-aspect="16:9">16:9</button>
                                 <button class="aspect-btn" data-aspect="9:16">9:16</button>
                                 <button class="aspect-btn" data-aspect="1:1">1:1</button>
                                 <button class="aspect-btn" data-aspect="4:5">4:5</button>
@@ -220,14 +210,13 @@
                 </div>
             </div>
 
-            <!-- History (auto‑clears after 3 days) -->
+            <!-- History (auto‑clears after 3 days via DB) -->
             <div class="content-view" id="view-history">
                 <h2>Stream History</h2>
                 <table class="history-table">
                     <thead><tr><th>Title</th><th>Date</th><th>Duration</th><th>Platform</th><th>Status</th></tr></thead>
                     <tbody id="historyBody"></tbody>
                 </table>
-                <p class="history-note">* History automatically deleted after 3 days</p>
             </div>
 
             <!-- Analytics Dashboard -->
@@ -239,7 +228,7 @@
                 </div>
             </div>
 
-            <!-- Settings (with password‑protected API URL) -->
+            <!-- Settings -->
             <div class="content-view" id="view-settings">
                 <h2>Settings</h2>
                 <div class="settings-group">
@@ -256,7 +245,7 @@
                     <label>Password to edit</label>
                     <input type="password" id="apiPassword" placeholder="Enter password">
                     <button class="btn" id="unlockApi">Unlock</button>
-                    <input type="url" id="apiUrl" placeholder="https://your-backend.com" readonly>
+                    <input type="url" id="apiUrl" placeholder="http://your-vps-ip:4000" readonly>
                     <button class="btn primary" id="saveSettings">Save</button>
                     <p class="hint">Default password: Dunamis@100</p>
                 </div>
@@ -266,7 +255,6 @@
                 </div>
             </div>
 
-            <!-- Footer -->
             <footer class="app-footer">
                 <p>© 2026 LiveStream Pro. Designed by Bright Dumashie.</p>
             </footer>
