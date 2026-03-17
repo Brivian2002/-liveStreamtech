@@ -14,6 +14,11 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="light-theme">
+    <!-- Floating WhatsApp Button -->
+    <a href="https://wa.me/233275903629" class="whatsapp-float" target="_blank">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+
     <div class="app">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -29,9 +34,13 @@
                 <a href="#" class="nav-item" data-view="history"><i class="fas fa-history"></i> History</a>
                 <a href="#" class="nav-item" data-view="analytics"><i class="fas fa-chart-line"></i> Analytics</a>
                 <a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> Settings</a>
+                <!-- New sections -->
+                <a href="#" class="nav-item" data-view="donation"><i class="fas fa-donate"></i> Donation</a>
+                <a href="#" class="nav-item" data-view="help"><i class="fas fa-question-circle"></i> Help / Blog</a>
+                <a href="#" class="nav-item" data-view="terms"><i class="fas fa-file-contract"></i> Terms & Privacy</a>
+                <a href="#" class="nav-item" data-view="contact"><i class="fas fa-envelope"></i> Contact</a>
             </nav>
             <div class="sidebar-footer">
-                <!-- Animated logo instead of "Creator" -->
                 <div class="animated-logo"></div>
             </div>
         </aside>
@@ -58,6 +67,11 @@
                 </div>
             </header>
 
+            <!-- Auto‑delete notification toast -->
+            <div id="autoDeleteToast" class="toast-notification">
+                <i class="fas fa-info-circle"></i> All videos are automatically deleted after 24 hours.
+            </div>
+
             <!-- Dynamic Views -->
             <div class="content-view active" id="view-dashboard">
                 <h2>Welcome back</h2>
@@ -73,6 +87,7 @@
                 </div>
             </div>
 
+            <!-- Upload Video -->
             <div class="content-view" id="view-upload">
                 <h2>Upload Video</h2>
                 <div class="upload-area" id="dropArea">
@@ -97,12 +112,11 @@
                 </div>
             </div>
 
-            <!-- Live Control – redesigned with tabs -->
+            <!-- Live Control (same as before) -->
             <div class="content-view" id="view-live">
                 <h2>Live Stream Control</h2>
                 <div class="live-panel">
                     <div class="live-left">
-                        <!-- Tab navigation -->
                         <div class="live-tabs">
                             <button class="live-tab active" data-tab="status">Stream Status</button>
                             <button class="live-tab" data-tab="info">Title & Desc</button>
@@ -111,7 +125,6 @@
                             <button class="live-tab" data-tab="scheduling">Scheduling</button>
                             <button class="live-tab" data-tab="overlays">Overlays</button>
                         </div>
-                        <!-- Tab content containers -->
                         <div class="tab-content active" id="tab-status">
                             <div class="stream-status-panel">
                                 <h3>Stream Status</h3>
@@ -185,7 +198,6 @@
                                 <input type="text" id="bgMusic" placeholder="https://...">
                             </div>
                         </div>
-                        <!-- Action buttons remain outside tabs -->
                         <div class="form-actions">
                             <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start</button>
                             <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
@@ -242,7 +254,7 @@
                 </div>
             </div>
 
-            <!-- Settings – API endpoint removed -->
+            <!-- Settings -->
             <div class="content-view" id="view-settings">
                 <h2>Settings</h2>
                 <div class="settings-group">
@@ -257,6 +269,63 @@
                 <div class="settings-group">
                     <h3>Theme</h3>
                     <button class="btn" id="toggleTheme">Toggle Dark/Light</button>
+                </div>
+            </div>
+
+            <!-- Donation -->
+            <div class="content-view" id="view-donation">
+                <h2>Support the Project</h2>
+                <div class="donation-box">
+                    <h3>Telecel GH (Mobile Money)</h3>
+                    <p><strong>Number:</strong> 0209558038</p>
+                    <p><strong>Name:</strong> Bright Dumashie</p>
+                    <hr>
+                    <h3>USD Bank Account</h3>
+                    <p><strong>Beneficiary:</strong> BRIGHT DUMASHIE</p>
+                    <p><strong>Account number:</strong> 210633430016</p>
+                    <p><strong>Bank:</strong> Lead Bank</p>
+                    <p><strong>Routing number:</strong> 101019644</p>
+                    <p><strong>Account type:</strong> CHECKING</p>
+                    <p><strong>Bank address:</strong> 1801 Main St., Kansas City, MO 64108, USA</p>
+                    <p><strong>Beneficiary address:</strong> Adenta, Pine street, Accra, 00233, GH</p>
+                    <p><em>Thank you for your support!</em></p>
+                </div>
+            </div>
+
+            <!-- Help / Blog -->
+            <div class="content-view" id="view-help">
+                <h2>Help & Guide</h2>
+                <div class="help-content">
+                    <h3>Getting Started</h3>
+                    <p>1. Upload a video in the <strong>Upload</strong> section.</p>
+                    <p>2. Go to <strong>Live Control</strong>, fill in your stream keys and RTMP URLs.</p>
+                    <p>3. Click <strong>Start Stream</strong> to go live on YouTube/Facebook.</p>
+                    <p>4. Use the <strong>Playlists</strong> tab to create sequences.</p>
+                    <p>5. Videos are automatically deleted after 24 hours.</p>
+                    <h3>Blog</h3>
+                    <p>Check back later for updates and tips!</p>
+                </div>
+            </div>
+
+            <!-- Terms & Privacy -->
+            <div class="content-view" id="view-terms">
+                <h2>Terms of Service & Privacy Policy</h2>
+                <div class="terms-box">
+                    <h3>Terms of Service</h3>
+                    <p>By using LiveStream Pro, you agree to use the service responsibly and not to upload illegal or copyrighted content. We reserve the right to remove any content without notice.</p>
+                    <h3>Privacy Policy</h3>
+                    <p>We collect only the information necessary to provide the service (email, stream keys). Your data is never shared with third parties. Stream keys are stored securely. Videos are automatically deleted after 24 hours.</p>
+                    <p>Last updated: 17th March, 2026</p>
+                </div>
+            </div>
+
+            <!-- Contact -->
+            <div class="content-view" id="view-contact">
+                <h2>Contact Us</h2>
+                <div class="contact-info">
+                    <p><i class="fas fa-envelope"></i> Email: <a href="mailto:brightsany3000@gmail.com">brightsany3000@gmail.com</a></p>
+                    <p><i class="fab fa-whatsapp"></i> WhatsApp: <a href="https://wa.me/233275903629" target="_blank">+233 27 590 3629</a></p>
+                    <p><i class="fas fa-calendar-alt"></i> Established: 17th March, 2026</p>
                 </div>
             </div>
 
