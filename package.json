@@ -1,14 +1,20 @@
 {
-  "name": "live-stream-backend",
-  "version": "1.0.0",
-  "description": "Backend for live streaming dashboard",
+  "name": "livestream-backend",
+  "version": "3.0.0",
+  "description": "Professional live streaming backend with PostgreSQL",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }
