@@ -18,7 +18,7 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
-                <i class="fab fa-youtube" style="color:#ff0000;"></i>
+                <i class="fas fa-circle animated-logo"></i>
                 <span>LiveStream Pro</span>
             </div>
             <nav class="nav-menu">
@@ -32,8 +32,7 @@
             </nav>
             <div class="sidebar-footer">
                 <div class="user-profile">
-                    <i class="fas fa-user-circle"></i>
-                    <span>Creator</span>
+                    <i class="fas fa-user-circle animated-logo"></i>
                 </div>
             </div>
         </aside>
@@ -55,14 +54,14 @@
                     </div>
                     <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
                     <div class="profile-icon">
-                        <i class="fas fa-user-circle"></i>
+                        <i class="fas fa-user-circle animated-logo"></i>
                     </div>
                 </div>
             </header>
 
             <!-- Dynamic Views -->
             <div class="content-view active" id="view-dashboard">
-                <h2>Welcome back, Creator</h2>
+                <h2>Welcome back</h2>
                 <div class="stats-cards">
                     <div class="stat-card"><i class="fas fa-video"></i><div><h3 id="videoCount">0</h3><p>Videos</p></div></div>
                     <div class="stat-card"><i class="fas fa-clock"></i><div><h3 id="totalStreamTime">0</h3><p>Hours</p></div></div>
@@ -99,40 +98,34 @@
                 </div>
             </div>
 
+            <!-- Live Control – Tabbed Interface -->
             <div class="content-view" id="view-live">
                 <h2>Live Stream Control</h2>
                 <div class="live-panel">
                     <div class="live-left">
-                        <div class="stream-form">
-                            <div class="form-group">
-                                <label>Stream Title</label>
-                                <input type="text" id="streamTitle" placeholder="My Stream">
+                        <!-- Tabs -->
+                        <div class="live-tabs">
+                            <button class="live-tab active" data-tab="status">Stream Status</button>
+                            <button class="live-tab" data-tab="schedule">Scheduling & Looping</button>
+                            <button class="live-tab" data-tab="overlays">Overlays</button>
+                            <button class="live-tab" data-tab="info">Stream Info</button>
+                            <button class="live-tab" data-tab="youtube">YouTube</button>
+                            <button class="live-tab" data-tab="facebook">Facebook</button>
+                        </div>
+                        <!-- Tab Content -->
+                        <div class="live-tab-content active" id="tab-status">
+                            <div class="stream-status-panel">
+                                <h3>Stream Status</h3>
+                                <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
+                                <div class="status-item"><span>Connection:</span> <span id="connectionStatus">Disconnected</span></div>
+                                <div class="status-item"><span>Bitrate:</span> <span id="bitrate">0 kbps</span></div>
+                                <div class="status-item"><span>Dropped Frames:</span> <span id="droppedFrames">0</span></div>
+                                <div class="status-item"><span>CPU:</span> <span id="cpuUsage">0%</span></div>
+                                <div class="status-item"><span>Viewers:</span> <span id="viewers">0</span></div>
+                                <div class="status-item"><span>Duration:</span> <span id="duration">00:00:00</span></div>
                             </div>
-                            <div class="form-group">
-                                <label>Description</label>
-                                <textarea id="streamDesc" rows="2"></textarea>
-                            </div>
-                            <!-- YouTube Section -->
-                            <div class="platform-section youtube">
-                                <h3><i class="fab fa-youtube"></i> YouTube</h3>
-                                <label>Stream URL</label>
-                                <input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
-                                <label>Backup Server URL</label>
-                                <input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2?backup=1">
-                                <label>Stream Key</label>
-                                <input type="text" id="ytKey" placeholder="xxxx-xxxx">
-                                <div class="toggle-stream"><input type="checkbox" id="ytEnable" checked> Enable</div>
-                            </div>
-                            <!-- Facebook Section -->
-                            <div class="platform-section facebook">
-                                <h3><i class="fab fa-facebook"></i> Facebook</h3>
-                                <label>RTMP URL</label>
-                                <input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
-                                <label>Stream Key</label>
-                                <input type="text" id="fbKey" placeholder="FB-xxxx">
-                                <div class="toggle-stream"><input type="checkbox" id="fbEnable" checked> Enable</div>
-                            </div>
-                            <!-- Scheduling & Looping -->
+                        </div>
+                        <div class="live-tab-content" id="tab-schedule">
                             <div class="advanced-settings">
                                 <h4>Scheduling & Looping</h4>
                                 <label>Schedule</label>
@@ -150,7 +143,8 @@
                                 <label>Auto‑reconnect</label>
                                 <input type="checkbox" id="autoReconnect" checked>
                             </div>
-                            <!-- Overlay Controls -->
+                        </div>
+                        <div class="live-tab-content" id="tab-overlays">
                             <div class="overlay-controls">
                                 <h4>Overlays</h4>
                                 <label><input type="checkbox" id="enableLowerThird"> Lower Third</label>
@@ -159,23 +153,46 @@
                                 <label>Background Music URL</label>
                                 <input type="text" id="bgMusic" placeholder="https://...">
                             </div>
-                            <!-- Action Buttons -->
-                            <div class="form-actions">
-                                <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start</button>
-                                <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
-                                <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
+                        </div>
+                        <div class="live-tab-content" id="tab-info">
+                            <div class="stream-form">
+                                <div class="form-group">
+                                    <label>Stream Title</label>
+                                    <input type="text" id="streamTitle" placeholder="My Stream">
+                                </div>
+                                <div class="form-group">
+                                    <label>Description</label>
+                                    <textarea id="streamDesc" rows="2"></textarea>
+                                </div>
                             </div>
                         </div>
-                        <!-- Status Panel -->
-                        <div class="stream-status-panel">
-                            <h3>Stream Status</h3>
-                            <div class="status-item"><span>Status:</span> <span id="streamStatusText">Offline</span></div>
-                            <div class="status-item"><span>Connection:</span> <span id="connectionStatus">Disconnected</span></div>
-                            <div class="status-item"><span>Bitrate:</span> <span id="bitrate">0 kbps</span></div>
-                            <div class="status-item"><span>Dropped Frames:</span> <span id="droppedFrames">0</span></div>
-                            <div class="status-item"><span>CPU:</span> <span id="cpuUsage">0%</span></div>
-                            <div class="status-item"><span>Viewers:</span> <span id="viewers">0</span></div>
-                            <div class="status-item"><span>Duration:</span> <span id="duration">00:00:00</span></div>
+                        <div class="live-tab-content" id="tab-youtube">
+                            <div class="platform-section youtube">
+                                <h3><i class="fab fa-youtube"></i> YouTube</h3>
+                                <label>Stream URL</label>
+                                <input type="text" id="ytRtmpPrimary" placeholder="rtmp://a.rtmp.youtube.com/live2">
+                                <label>Backup Server URL</label>
+                                <input type="text" id="ytRtmpBackup" placeholder="rtmp://b.rtmp.youtube.com/live2?backup=1">
+                                <label>Stream Key</label>
+                                <input type="text" id="ytKey" placeholder="xxxx-xxxx">
+                                <div class="toggle-stream"><input type="checkbox" id="ytEnable" checked> Enable</div>
+                            </div>
+                        </div>
+                        <div class="live-tab-content" id="tab-facebook">
+                            <div class="platform-section facebook">
+                                <h3><i class="fab fa-facebook"></i> Facebook</h3>
+                                <label>RTMP URL</label>
+                                <input type="text" id="fbRtmp" placeholder="rtmp://live-api-s.facebook.com:80/rtmp/">
+                                <label>Stream Key</label>
+                                <input type="text" id="fbKey" placeholder="FB-xxxx">
+                                <div class="toggle-stream"><input type="checkbox" id="fbEnable" checked> Enable</div>
+                            </div>
+                        </div>
+                        <!-- Action Buttons (always visible) -->
+                        <div class="form-actions">
+                            <button class="btn primary" id="startStreamBtn"><i class="fas fa-play"></i> Start</button>
+                            <button class="btn secondary" id="stopStreamBtn" disabled><i class="fas fa-stop"></i> Stop</button>
+                            <button class="btn" id="pauseStreamBtn" disabled><i class="fas fa-pause"></i> Pause</button>
                         </div>
                     </div>
                     <div class="live-right">
@@ -210,7 +227,7 @@
                 </div>
             </div>
 
-            <!-- History (auto‑clears after 3 days via DB) -->
+            <!-- History -->
             <div class="content-view" id="view-history">
                 <h2>Stream History</h2>
                 <table class="history-table">
@@ -219,7 +236,7 @@
                 </table>
             </div>
 
-            <!-- Analytics Dashboard -->
+            <!-- Analytics -->
             <div class="content-view" id="view-analytics">
                 <h2>Live Analytics</h2>
                 <div class="analytics-grid">
@@ -228,7 +245,7 @@
                 </div>
             </div>
 
-            <!-- Settings -->
+            <!-- Settings – simplified, no API field -->
             <div class="content-view" id="view-settings">
                 <h2>Settings</h2>
                 <div class="settings-group">
@@ -239,15 +256,6 @@
                     <input type="number" id="defaultBitrate" value="2500">
                     <label>Encoder</label>
                     <select id="defaultEncoder"><option>libx264</option><option>h264_nvenc</option></select>
-                </div>
-                <div class="settings-group">
-                    <h3>API Endpoint (locked)</h3>
-                    <label>Password to edit</label>
-                    <input type="password" id="apiPassword" placeholder="Enter password">
-                    <button class="btn" id="unlockApi">Unlock</button>
-                    <input type="url" id="apiUrl" placeholder="http://your-vps-ip:4000" readonly>
-                    <button class="btn primary" id="saveSettings">Save</button>
-                    <p class="hint">Default password: Dunamis@100</p>
                 </div>
                 <div class="settings-group">
                     <h3>Theme</h3>
