@@ -8,12 +8,14 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin SDK
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-if (Object.keys(serviceAccount).length) {
+// Firebase Admin initialization
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+  : null;
+if (serviceAccount) {
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 } else {
-  console.warn('FIREBASE_SERVICE_ACCOUNT not set – auth will be disabled');
+  console.warn('FIREBASE_SERVICE_ACCOUNT not set – auth will fail');
 }
 
 const app = express();
@@ -35,21 +37,19 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Ensure uploads directory exists
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// Multer configuration
+// Multer config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
 const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 * 1024 } });
 
-// In‑memory active stream
 let activeStream = null;
 
-// ========== Database setup ==========
+// ========== Database tables ==========
 const createTables = async () => {
   const client = await pool.connect();
   try {
@@ -98,12 +98,12 @@ async function authenticate(req, res, next) {
   const idToken = authHeader.split('Bearer ')[1];
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
-    req.user = decoded; // contains uid, email, etc.
-    // Ensure user exists in our DB
+    req.user = decoded; // contains uid, email
+    // Insert or update user in DB
     const client = await pool.connect();
     try {
       await client.query(
-        'INSERT INTO users (uid, email) VALUES ($1, $2) ON CONFLICT (uid) DO NOTHING',
+        'INSERT INTO users (uid, email) VALUES ($1, $2) ON CONFLICT (uid) DO UPDATE SET email = EXCLUDED.email',
         [decoded.uid, decoded.email]
       );
     } finally {
@@ -111,13 +111,14 @@ async function authenticate(req, res, next) {
     }
     next();
   } catch (error) {
+    console.error('Auth error:', error);
     return res.status(403).json({ error: 'Invalid token' });
   }
 }
 
 // ========== API Endpoints ==========
 
-// Upload video (authenticated)
+// Upload video
 app.post('/upload-video', authenticate, upload.single('video'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const { filename, originalname, size } = req.file;
@@ -136,7 +137,7 @@ app.post('/upload-video', authenticate, upload.single('video'), async (req, res)
   }
 });
 
-// Get user's videos (authenticated)
+// Get user's videos
 app.get('/videos', authenticate, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -150,7 +151,7 @@ app.get('/videos', authenticate, async (req, res) => {
   }
 });
 
-// Update video metadata (authenticated, user must own video)
+// Update video metadata
 app.put('/videos/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   const { title, tags, description } = req.body;
@@ -173,7 +174,7 @@ app.put('/videos/:id', authenticate, async (req, res) => {
   }
 });
 
-// Delete video (authenticated, user must own video)
+// Delete video
 app.delete('/videos/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
@@ -194,17 +195,16 @@ app.delete('/videos/:id', authenticate, async (req, res) => {
   }
 });
 
-// Start stream (authenticated) – added TikTok support
+// Start stream (with TikTok)
 app.post('/start-stream', authenticate, async (req, res) => {
   const {
     title, description,
     youtubeRtmpPrimary, youtubeRtmpBackup, youtubeKey,
     facebookRtmp, facebookKey,
-    tiktokRtmp, tiktokKey,   // new TikTok fields
+    tiktokRtmp, tiktokKey,
     loopMode, autoReconnect, overlays
   } = req.body;
 
-  // Find user's latest video
   const clientDb = await pool.connect();
   let videoFile = null;
   try {
@@ -224,9 +224,9 @@ app.post('/start-stream', authenticate, async (req, res) => {
     const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
     const proc1 = spawn('ffmpeg', [
       '-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
-      '-vf', 'scale=854:480',
-      '-c:a', 'aac', '-b:a', '96k',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
+      '-vf', 'scale=1280:720',
+      '-c:a', 'aac', '-b:a', '128k',
       '-threads', '2',
       '-f', 'flv', primaryUrl
     ]);
@@ -239,9 +239,9 @@ app.post('/start-stream', authenticate, async (req, res) => {
     const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
     const proc2 = spawn('ffmpeg', [
       '-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
-      '-vf', 'scale=854:480',
-      '-c:a', 'aac', '-b:a', '96k',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
+      '-vf', 'scale=1280:720',
+      '-c:a', 'aac', '-b:a', '128k',
       '-threads', '2',
       '-f', 'flv', backupUrl
     ]);
@@ -254,9 +254,9 @@ app.post('/start-stream', authenticate, async (req, res) => {
     const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
     const procFb = spawn('ffmpeg', [
       '-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
-      '-vf', 'scale=854:480',
-      '-c:a', 'aac', '-b:a', '96k',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
+      '-vf', 'scale=1280:720',
+      '-c:a', 'aac', '-b:a', '128k',
       '-threads', '2',
       '-f', 'flv', fbUrl
     ]);
@@ -264,14 +264,14 @@ app.post('/start-stream', authenticate, async (req, res) => {
     processes.push(procFb);
   }
 
-  // TikTok (new)
+  // TikTok
   if (tiktokKey && tiktokRtmp) {
     const ttUrl = `${tiktokRtmp.replace(/\/$/, '')}/${tiktokKey}`;
     const procTt = spawn('ffmpeg', [
       '-re', '-i', videoFile,
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
-      '-vf', 'scale=854:480',
-      '-c:a', 'aac', '-b:a', '96k',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k',
+      '-vf', 'scale=1280:720',
+      '-c:a', 'aac', '-b:a', '128k',
       '-threads', '2',
       '-f', 'flv', ttUrl
     ]);
@@ -302,7 +302,7 @@ app.post('/start-stream', authenticate, async (req, res) => {
       [req.user.uid, title || 'Untitled', 'YouTube/Facebook/TikTok', 'live']
     );
   } catch (err) {
-    console.error('Error saving stream start to DB:', err);
+    console.error('Error saving stream start:', err);
   } finally {
     client.release();
   }
@@ -310,7 +310,7 @@ app.post('/start-stream', authenticate, async (req, res) => {
   res.json({ message: 'Stream started', count: processes.length });
 });
 
-// Stop stream (no auth needed for simplicity – could check user)
+// Stop stream
 app.post('/stop-stream', async (req, res) => {
   if (activeStream) {
     activeStream.processes.forEach(p => p.kill('SIGINT'));
@@ -340,7 +340,7 @@ app.get('/stream-status', (req, res) => {
   }
 });
 
-// Get user's stream history (authenticated)
+// Get user's stream history
 app.get('/stream-history', authenticate, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -357,7 +357,7 @@ app.get('/stream-history', authenticate, async (req, res) => {
   }
 });
 
-// Preview (latest user video – authenticated)
+// Preview (authenticated – stream user's latest video)
 app.get('/preview', authenticate, async (req, res) => {
   const client = await pool.connect();
   try {
