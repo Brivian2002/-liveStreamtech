@@ -1,4 +1,3 @@
-// ==================== Firebase Initialization ====================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
@@ -18,13 +17,13 @@ const analytics = getAnalytics(appFirebase);
 const auth = getAuth(appFirebase);
 const provider = new GoogleAuthProvider();
 
-// ==================== State ====================
+// ========== State ==========
 let uploadedVideos = [];
 let playlists = [];
 let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
-const apiBaseUrl = 'https://livestreamtech.onrender.com'; // your Render URL
+const apiBaseUrl = 'https://livestreamtech.onrender.com'; // Replace with your actual Render URL
 let currentUser = null;
 
 // DOM Elements
@@ -36,14 +35,14 @@ const pageTitle = document.getElementById('page-title');
 const globalStatusDot = document.querySelector('.stream-status .status-dot');
 const globalStatusText = document.querySelector('.stream-status span:last-child');
 const videoCountSpan = document.getElementById('videoCount');
-const totalStreamTimeSpan = document.getElementById('totalStreamTime');
 const totalViewsSpan = document.getElementById('totalViews');
 const streamHealthSpan = document.getElementById('streamHealth');
 const internetSpeedSpan = document.getElementById('internetSpeed');
 const userEmailSpan = document.getElementById('user-email');
 const logoutBtn = document.getElementById('logout-btn');
+const autoDeleteToast = document.getElementById('autoDeleteToast');
 
-// Upload (same as before)
+// Upload
 const dropArea = document.getElementById('dropArea');
 const fileInput = document.getElementById('fileInput');
 const uploadProgress = document.getElementById('uploadProgress');
@@ -57,7 +56,7 @@ const videoTags = document.getElementById('videoTags');
 const videoDesc = document.getElementById('videoDesc');
 const saveMetadataBtn = document.getElementById('saveMetadata');
 
-// Live – added TikTok elements
+// Live
 const streamTitle = document.getElementById('streamTitle');
 const streamDesc = document.getElementById('streamDesc');
 const ytRtmpPrimary = document.getElementById('ytRtmpPrimary');
@@ -112,21 +111,16 @@ const defaultBitrate = document.getElementById('defaultBitrate');
 const defaultEncoder = document.getElementById('defaultEncoder');
 const toggleThemeBtn = document.getElementById('toggleTheme');
 
-// Toast
-const autoDeleteToast = document.getElementById('autoDeleteToast');
-
 // Charts
 let viewersChart, bitrateChart;
 
-// ==================== Auth Functions ====================
+// ========== Auth Functions ==========
 document.getElementById('google-login').addEventListener('click', () => {
   signInWithPopup(auth, provider).catch(err => alert(err.message));
 });
-
 document.getElementById('email-login').addEventListener('click', () => {
-  alert('Email login not implemented – use Google for now.');
+  alert('Email login not implemented – please use Google.');
 });
-
 logoutBtn.addEventListener('click', () => signOut(auth));
 
 onAuthStateChanged(auth, async (user) => {
@@ -135,11 +129,8 @@ onAuthStateChanged(auth, async (user) => {
     splashContainer.style.display = 'none';
     appContainer.style.display = 'flex';
     userEmailSpan.textContent = user.email;
-    // Get token for API calls
     const token = await user.getIdToken();
-    // Store token globally for fetch interceptors
     window.authToken = token;
-    // Initial data load
     fetchVideos();
     fetchHistory();
     showAutoDeleteToast();
@@ -158,7 +149,7 @@ async function authFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
-// ==================== Data Functions (using authFetch) ====================
+// ========== Data Functions ==========
 async function fetchVideos() {
   try {
     const res = await authFetch(`${apiBaseUrl}/videos`);
@@ -167,9 +158,7 @@ async function fetchVideos() {
       renderLibrary();
       updateStats();
     }
-  } catch (err) {
-    console.error('Failed to fetch videos', err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function fetchHistory() {
@@ -179,13 +168,79 @@ async function fetchHistory() {
       const history = await res.json();
       renderHistory(history);
     }
-  } catch (err) {
-    console.error('Failed to fetch history', err);
+  } catch (err) { console.error(err); }
+}
+
+function updateStats() {
+  videoCountSpan.textContent = uploadedVideos.length;
+  totalViewsSpan.textContent = Math.floor(Math.random() * 1000);
+  streamHealthSpan.textContent = (95 + Math.random() * 4).toFixed(1) + '%';
+}
+
+function showAutoDeleteToast() {
+  if (!sessionStorage.getItem('toastShown')) {
+    autoDeleteToast.style.display = 'block';
+    setTimeout(() => autoDeleteToast.style.display = 'none', 5000);
+    sessionStorage.setItem('toastShown', 'true');
   }
 }
 
-// Update other functions to use authFetch (upload, delete, start/stop stream, etc.)
-// Example: handleFileUpload
+// ========== Internet Speed ==========
+async function measureSpeed() {
+  const start = Date.now();
+  try {
+    await fetch('https://httpbin.org/bytes/100000');
+    const duration = (Date.now() - start) / 1000;
+    internetSpeedSpan.textContent = ((0.1 * 8) / duration).toFixed(1) + ' Mbps';
+  } catch { internetSpeedSpan.textContent = 'N/A'; }
+}
+setInterval(measureSpeed, 10000);
+measureSpeed();
+
+// ========== Navigation ==========
+navItems.forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    const viewId = item.dataset.view;
+    navItems.forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    views.forEach(v => v.classList.remove('active'));
+    document.getElementById(`view-${viewId}`).classList.add('active');
+    pageTitle.textContent = item.querySelector('span').textContent;
+    if (viewId === 'history') fetchHistory();
+    if (viewId === 'dashboard') fetchVideos();
+  });
+});
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  navItems.forEach(n => n.classList.remove('active'));
+  document.querySelector('[data-view="settings"]').classList.add('active');
+  views.forEach(v => v.classList.remove('active'));
+  document.getElementById('view-settings').classList.add('active');
+  pageTitle.textContent = 'Settings';
+});
+
+// ========== Live Tabs ==========
+liveTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    liveTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    tabContents.forEach(c => c.classList.remove('active'));
+    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+  });
+});
+
+// ========== Upload ==========
+dropArea.addEventListener('click', () => fileInput.click());
+dropArea.addEventListener('dragover', e => e.preventDefault());
+dropArea.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFileUpload(e.target.files[0]);
+});
+
 async function handleFileUpload(file) {
   const valid = ['video/mp4', 'video/quicktime', 'video/webm'];
   if (!valid.includes(file.type)) { alert('Unsupported format'); return; }
@@ -193,7 +248,6 @@ async function handleFileUpload(file) {
   uploadProgress.style.display = 'block';
   progressFill.style.width = '0%';
   progressStatus.textContent = '0%';
-
   const formData = new FormData();
   formData.append('video', file);
 
@@ -206,18 +260,13 @@ async function handleFileUpload(file) {
   }, 200);
 
   try {
-    const response = await authFetch(`${apiBaseUrl}/upload-video`, {
-      method: 'POST',
-      body: formData
-    });
+    const res = await authFetch(`${apiBaseUrl}/upload-video`, { method: 'POST', body: formData });
     clearInterval(interval);
-    if (!response.ok) throw new Error('Upload failed');
-    const result = await response.json();
+    if (!res.ok) throw new Error('Upload failed');
     await fetchVideos();
     progressFill.style.width = '100%';
     progressStatus.textContent = 'Complete!';
     setTimeout(() => uploadProgress.style.display = 'none', 1000);
-    showAutoDeleteToast();
   } catch (err) {
     clearInterval(interval);
     alert(err.message);
@@ -225,30 +274,66 @@ async function handleFileUpload(file) {
   }
 }
 
-// Delete video
-async function deleteVideo(videoId) {
-  if (!confirm('Delete this video?')) return;
-  try {
-    const res = await authFetch(`${apiBaseUrl}/videos/${videoId}`, { method: 'DELETE' });
-    if (res.ok) {
-      uploadedVideos = uploadedVideos.filter(v => v.id !== videoId);
-      renderLibrary();
-      updateStats();
-    } else {
-      alert('Delete failed');
-    }
-  } catch (err) {
-    alert('Error: ' + err.message);
+saveMetadataBtn.addEventListener('click', async () => {
+  if (!uploadedVideos.length) return alert('No video selected');
+  const id = uploadedVideos[0].id;
+  await authFetch(`${apiBaseUrl}/videos/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: videoTitle.value,
+      tags: videoTags.value,
+      description: videoDesc.value
+    })
+  });
+  alert('Metadata saved');
+});
+
+function renderLibrary() {
+  libraryGrid.innerHTML = '';
+  if (!uploadedVideos.length) {
+    libraryGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">No videos</p>';
+    return;
   }
+  uploadedVideos.forEach(video => {
+    const item = document.createElement('div');
+    item.className = 'library-item';
+    item.innerHTML = `
+      <video src="${apiBaseUrl}/uploads/${video.filename}?token=${window.authToken}" muted></video>
+      <div class="info"><p>${video.original_name.substring(0,20)}...</p><small>${(video.size/1e6).toFixed(2)} MB</small></div>
+      <button class="delete-video-btn" data-id="${video.id}"><i class="fas fa-trash"></i></button>
+    `;
+    item.querySelector('video').addEventListener('click', (e) => {
+      e.stopPropagation();
+      previewPlayer.src = `${apiBaseUrl}/uploads/${video.filename}?token=${window.authToken}`;
+      videoTitle.value = video.title || video.original_name;
+      videoTags.value = video.tags || '';
+      videoDesc.value = video.description || '';
+      document.querySelector('[data-view="upload"]').click();
+    });
+    const delBtn = item.querySelector('.delete-video-btn');
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Delete this video?')) return;
+      try {
+        const res = await authFetch(`${apiBaseUrl}/videos/${video.id}`, { method: 'DELETE' });
+        if (res.ok) {
+          uploadedVideos = uploadedVideos.filter(v => v.id !== video.id);
+          renderLibrary();
+          updateStats();
+        } else alert('Delete failed');
+      } catch (err) { alert(err.message); }
+    });
+    libraryGrid.appendChild(item);
+  });
 }
 
-// Start stream (now includes TikTok)
+// ========== Live Stream ==========
 startBtn.addEventListener('click', async () => {
   if ((!ytKey.value || !ytRtmpPrimary.value) && (!fbKey.value || !fbRtmp.value) && (!tiktokKey.value || !tiktokRtmp.value)) {
     alert('Fill at least one platform configuration');
     return;
   }
-
   const payload = {
     title: streamTitle.value || 'Untitled',
     description: streamDesc.value,
@@ -269,29 +354,22 @@ startBtn.addEventListener('click', async () => {
       bgMusic: bgMusic.value
     }
   };
-
   try {
     const res = await authFetch(`${apiBaseUrl}/start-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Start failed');
-    }
+    if (!res.ok) throw new Error((await res.json()).error || 'Start failed');
     streamActive = true;
     updateStreamUI(true);
     startTimer();
-    if (uploadedVideos.length) livePreview.src = `${apiBaseUrl}/uploads/${uploadedVideos[uploadedVideos.length - 1].filename}`;
+    if (uploadedVideos.length) livePreview.src = `${apiBaseUrl}/uploads/${uploadedVideos[uploadedVideos.length-1].filename}?token=${window.authToken}`;
     pollStreamStatus();
     startAnalytics();
-  } catch (err) {
-    alert(err.message);
-  }
+  } catch (err) { alert(err.message); }
 });
 
-// Stop stream (no auth needed, but keep as is)
 stopBtn.addEventListener('click', async () => {
   try {
     await fetch(`${apiBaseUrl}/stop-stream`, { method: 'POST' });
@@ -300,66 +378,148 @@ stopBtn.addEventListener('click', async () => {
     stopTimer();
     livePreview.src = '';
     fetchHistory();
-  } catch (err) {
-    alert(err.message);
-  }
+  } catch (err) { alert(err.message); }
 });
 
-// ... (rest of app.js – update all fetch calls to authFetch where needed, e.g., saveMetadata, delete, etc.)
-
-// Auto‑delete toast
-function showAutoDeleteToast() {
-  if (!sessionStorage.getItem('toastShown')) {
-    autoDeleteToast.style.display = 'block';
-    setTimeout(() => autoDeleteToast.style.display = 'none', 5000);
-    sessionStorage.setItem('toastShown', 'true');
+function updateStreamUI(active) {
+  if (active) {
+    globalStatusDot.className = 'status-dot online';
+    globalStatusText.textContent = 'Live';
+    streamStatusText.textContent = 'Live';
+    connectionStatus.textContent = 'Connected';
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    pauseBtn.disabled = false;
+  } else {
+    globalStatusDot.className = 'status-dot offline';
+    globalStatusText.textContent = 'Offline';
+    streamStatusText.textContent = 'Offline';
+    connectionStatus.textContent = 'Disconnected';
+    bitrateSpan.textContent = '0 kbps';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    pauseBtn.disabled = true;
   }
 }
 
-// Cleanup old videos (run every 24h) – optional, but backend also does cleanup
-setInterval(fetchVideos, 86400000);
+function startTimer() {
+  streamSeconds = 0;
+  streamTimer = setInterval(() => {
+    streamSeconds++;
+    const h = Math.floor(streamSeconds / 3600);
+    const m = Math.floor((streamSeconds % 3600) / 60);
+    const s = streamSeconds % 60;
+    durationSpan.textContent = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  }, 1000);
+}
+function stopTimer() { clearInterval(streamTimer); durationSpan.textContent = '00:00:00'; }
 
-// Navigation and other helpers remain largely the same, but ensure authFetch is used for any API calls.
+async function pollStreamStatus() {
+  if (!streamActive) return;
+  try {
+    const res = await fetch(`${apiBaseUrl}/stream-status`);
+    const data = await res.json();
+    if (!data.active) {
+      streamActive = false; updateStreamUI(false); stopTimer(); livePreview.src = '';
+    } else {
+      bitrateSpan.textContent = Math.floor(2000 + Math.random()*500) + ' kbps';
+      droppedFramesSpan.textContent = Math.floor(Math.random()*10);
+      cpuUsageSpan.textContent = Math.floor(20+Math.random()*10) + '%';
+      viewersSpan.textContent = Math.floor(50+Math.random()*200);
+      latencySpan.textContent = (1+Math.random()).toFixed(1)+'s';
+      fpsSpan.textContent = 30;
+      resolutionSpan.textContent = '1280x720';
+      setTimeout(pollStreamStatus, 5000);
+    }
+  } catch { setTimeout(pollStreamStatus, 5000); }
+}
 
-// Example: saveMetadata
-saveMetadataBtn.addEventListener('click', async () => {
-  const selectedId = uploadedVideos[0]?.id; // simplistic
-  if (!selectedId) return alert('Select a video first');
-  await authFetch(`${apiBaseUrl}/videos/${selectedId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      title: videoTitle.value,
-      tags: videoTags.value,
-      description: videoDesc.value
-    })
+aspectBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    aspectBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const asp = btn.dataset.aspect;
+    if (asp === '16:9') videoWrapper.style.paddingTop = '56.25%';
+    else if (asp === '9:16') videoWrapper.style.paddingTop = '177.78%';
+    else if (asp === '1:1') videoWrapper.style.paddingTop = '100%';
+    else if (asp === '4:5') videoWrapper.style.paddingTop = '125%';
+    else if (asp === 'fill') videoWrapper.style.paddingTop = '0';
   });
-  alert('Metadata saved');
 });
 
-// ... (rest of the functions remain similar, just replace fetch with authFetch when talking to backend)
-
-// Render library with delete button (uses deleteVideo)
-function renderLibrary() {
-  libraryGrid.innerHTML = '';
-  if (!uploadedVideos.length) {
-    libraryGrid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">No videos</p>';
-    return;
-  }
-  uploadedVideos.forEach(video => {
-    const item = document.createElement('div');
-    item.className = 'library-item';
-    item.innerHTML = `
-      <video src="${apiBaseUrl}/uploads/${video.filename}?token=${window.authToken}" muted></video>
-      <div class="info">
-        <p>${video.original_name.substring(0, 20)}...</p>
-        <small>${(video.size / 1e6).toFixed(2)} MB</small>
-      </div>
-      <button class="delete-video-btn" data-id="${video.id}"><i class="fas fa-trash"></i></button>
-    `;
-    // ... event listeners
-    libraryGrid.appendChild(item);
+// ========== History ==========
+function renderHistory(history) {
+  historyBody.innerHTML = '';
+  history.forEach(e => {
+    const row = document.createElement('tr');
+    const d = new Date(e.date).toLocaleString();
+    const dur = e.duration ? `${Math.floor(e.duration/60)}:${(e.duration%60).toString().padStart(2,'0')}` : '00:00';
+    row.innerHTML = `<td>${e.title}</td><td>${d}</td><td>${dur}</td><td>${e.platform}</td><td>${e.status}</td>`;
+    historyBody.appendChild(row);
   });
 }
 
-// ... rest of app.js unchanged except for using authFetch and token in video URLs
+// ========== Playlists ==========
+newPlaylistBtn.addEventListener('click', () => {
+  const name = prompt('Playlist name:');
+  if (name) {
+    playlists.push({ name, videos: [] });
+    renderPlaylists();
+  }
+});
+function renderPlaylists() {
+  playlistGrid.innerHTML = '';
+  playlists.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'playlist-card';
+    div.innerHTML = `<strong>${p.name}</strong><br>${p.videos.length} videos`;
+    playlistGrid.appendChild(div);
+  });
+}
+
+// ========== Analytics ==========
+function startAnalytics() {
+  if (!viewersChart) {
+    viewersChart = new Chart(document.getElementById('viewersChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Viewers', data: [], borderColor: '#ff0000' }] },
+      options: { responsive: true }
+    });
+    bitrateChart = new Chart(document.getElementById('bitrateChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Bitrate (kbps)', data: [], borderColor: '#ff0000' }] },
+      options: { responsive: true }
+    });
+  }
+  setInterval(() => {
+    if (!streamActive) return;
+    const time = new Date().toLocaleTimeString();
+    viewersChart.data.labels.push(time);
+    viewersChart.data.datasets[0].data.push(Math.floor(50+Math.random()*200));
+    if (viewersChart.data.labels.length > 10) {
+      viewersChart.data.labels.shift();
+      viewersChart.data.datasets[0].data.shift();
+    }
+    viewersChart.update();
+    bitrateChart.data.labels.push(time);
+    bitrateChart.data.datasets[0].data.push(Math.floor(2000+Math.random()*500));
+    if (bitrateChart.data.labels.length > 10) {
+      bitrateChart.data.labels.shift();
+      bitrateChart.data.datasets[0].data.shift();
+    }
+    bitrateChart.update();
+  }, 5000);
+}
+
+// ========== Settings ==========
+toggleThemeBtn.addEventListener('click', () => document.body.classList.toggle('light-theme'));
+if (localStorage.getItem('resolution')) defaultResolution.value = localStorage.getItem('resolution');
+if (localStorage.getItem('bitrate')) defaultBitrate.value = localStorage.getItem('bitrate');
+if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem('encoder');
+defaultResolution.addEventListener('change', () => localStorage.setItem('resolution', defaultResolution.value));
+defaultBitrate.addEventListener('change', () => localStorage.setItem('bitrate', defaultBitrate.value));
+defaultEncoder.addEventListener('change', () => localStorage.setItem('encoder', defaultEncoder.value));
+
+// ========== Initial ==========
+fetchVideos();
+fetchHistory();
