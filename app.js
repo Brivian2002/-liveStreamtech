@@ -4,9 +4,7 @@ let playlists = [];
 let streamActive = false;
 let streamTimer = null;
 let streamSeconds = 0;
-let apiBaseUrl = localStorage.getItem('apiUrl') || 'http://129.146.45.248:4000';
-let apiLocked = true;
-const API_PASSWORD = 'Dunis@100';
+const API_BASE_URL = 'http://129.146.45.248:4000'; // HARDCODED – no editing
 
 // DOM Elements
 const views = document.querySelectorAll('.content-view');
@@ -34,7 +32,10 @@ const videoTags = document.getElementById('videoTags');
 const videoDesc = document.getElementById('videoDesc');
 const saveMetadataBtn = document.getElementById('saveMetadata');
 
-// Live
+// Live – new tab elements
+const liveTabs = document.querySelectorAll('.live-tab');
+const tabContents = document.querySelectorAll('.live-tab-content');
+
 const streamTitle = document.getElementById('streamTitle');
 const streamDesc = document.getElementById('streamDesc');
 const ytRtmpPrimary = document.getElementById('ytRtmpPrimary');
@@ -76,14 +77,10 @@ const historyBody = document.getElementById('historyBody');
 const newPlaylistBtn = document.getElementById('newPlaylistBtn');
 const playlistGrid = document.getElementById('playlistGrid');
 
-// Settings
+// Settings (no API field)
 const defaultResolution = document.getElementById('defaultResolution');
 const defaultBitrate = document.getElementById('defaultBitrate');
 const defaultEncoder = document.getElementById('defaultEncoder');
-const apiUrlInput = document.getElementById('apiUrl');
-const apiPassword = document.getElementById('apiPassword');
-const unlockApiBtn = document.getElementById('unlockApi');
-const saveSettingsBtn = document.getElementById('saveSettings');
 const toggleThemeBtn = document.getElementById('toggleTheme');
 
 // Charts
@@ -92,7 +89,7 @@ let viewersChart, bitrateChart;
 // ==================== Helpers ====================
 async function fetchVideos() {
   try {
-    const res = await fetch(`${apiBaseUrl}/videos`);
+    const res = await fetch(`${API_BASE_URL}/videos`);
     if (res.ok) {
       uploadedVideos = await res.json();
       renderLibrary();
@@ -105,7 +102,7 @@ async function fetchVideos() {
 
 async function fetchHistory() {
   try {
-    const res = await fetch(`${apiBaseUrl}/stream-history`);
+    const res = await fetch(`${API_BASE_URL}/stream-history`);
     if (res.ok) {
       const history = await res.json();
       renderHistory(history);
@@ -160,6 +157,16 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
   pageTitle.textContent = 'Settings';
 });
 
+// ==================== Live Tabs ====================
+liveTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    liveTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    tabContents.forEach(content => content.classList.remove('active'));
+    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+  });
+});
+
 // ==================== Upload ====================
 dropArea.addEventListener('click', () => fileInput.click());
 dropArea.addEventListener('dragover', (e) => e.preventDefault());
@@ -192,7 +199,7 @@ async function handleFileUpload(file) {
   }, 200);
 
   try {
-    const response = await fetch(`${apiBaseUrl}/upload-video`, {
+    const response = await fetch(`${API_BASE_URL}/upload-video`, {
       method: 'POST',
       body: formData
     });
@@ -213,7 +220,7 @@ async function handleFileUpload(file) {
 saveMetadataBtn.addEventListener('click', async () => {
   const selectedId = uploadedVideos[0]?.id; // simplistic – you'd need to track selected video
   if (!selectedId) return alert('Select a video first');
-  await fetch(`${apiBaseUrl}/videos/${selectedId}`, {
+  await fetch(`${API_BASE_URL}/videos/${selectedId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -235,14 +242,14 @@ function renderLibrary() {
     const item = document.createElement('div');
     item.className = 'library-item';
     item.innerHTML = `
-      <video src="${apiBaseUrl}/uploads/${video.filename}" muted></video>
+      <video src="${API_BASE_URL}/uploads/${video.filename}" muted></video>
       <div class="info">
         <p>${video.original_name.substring(0, 20)}...</p>
         <small>${(video.size / 1e6).toFixed(2)} MB</small>
       </div>
     `;
     item.addEventListener('click', () => {
-      previewPlayer.src = `${apiBaseUrl}/uploads/${video.filename}`;
+      previewPlayer.src = `${API_BASE_URL}/uploads/${video.filename}`;
       videoTitle.value = video.title || video.original_name;
       videoTags.value = video.tags || '';
       videoDesc.value = video.description || '';
@@ -279,7 +286,7 @@ startBtn.addEventListener('click', async () => {
   };
 
   try {
-    const res = await fetch(`${apiBaseUrl}/start-stream`, {
+    const res = await fetch(`${API_BASE_URL}/start-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -291,7 +298,7 @@ startBtn.addEventListener('click', async () => {
     streamActive = true;
     updateStreamUI(true);
     startTimer();
-    if (uploadedVideos.length) livePreview.src = `${apiBaseUrl}/uploads/${uploadedVideos[uploadedVideos.length - 1].filename}`;
+    if (uploadedVideos.length) livePreview.src = `${API_BASE_URL}/uploads/${uploadedVideos[uploadedVideos.length - 1].filename}`;
     pollStreamStatus();
     startAnalytics();
   } catch (err) {
@@ -301,7 +308,7 @@ startBtn.addEventListener('click', async () => {
 
 stopBtn.addEventListener('click', async () => {
   try {
-    await fetch(`${apiBaseUrl}/stop-stream`, { method: 'POST' });
+    await fetch(`${API_BASE_URL}/stop-stream`, { method: 'POST' });
     streamActive = false;
     updateStreamUI(false);
     stopTimer();
@@ -349,7 +356,7 @@ function stopTimer() { clearInterval(streamTimer); durationSpan.textContent = '0
 async function pollStreamStatus() {
   if (!streamActive) return;
   try {
-    const res = await fetch(`${apiBaseUrl}/stream-status`);
+    const res = await fetch(`${API_BASE_URL}/stream-status`);
     const data = await res.json();
     if (!data.active) {
       streamActive = false;
@@ -452,30 +459,13 @@ function startAnalytics() {
 }
 
 // ==================== Settings ====================
-unlockApiBtn.addEventListener('click', () => {
-  if (apiPassword.value === API_PASSWORD) {
-    apiUrlInput.readOnly = false;
-    apiUrlInput.style.background = '#fff';
-    apiPassword.value = '';
-  } else {
-    alert('Incorrect password');
-  }
-});
-
-saveSettingsBtn.addEventListener('click', () => {
-  const newApi = apiUrlInput.value.trim();
-  if (newApi && !apiUrlInput.readOnly) {
-    apiBaseUrl = newApi.replace(/\/$/, '');
-    localStorage.setItem('apiUrl', apiBaseUrl);
-  }
+saveSettingsBtn?.addEventListener('click', () => {
   localStorage.setItem('resolution', defaultResolution.value);
   localStorage.setItem('bitrate', defaultBitrate.value);
   localStorage.setItem('encoder', defaultEncoder.value);
   alert('Settings saved');
 });
 
-apiUrlInput.value = localStorage.getItem('apiUrl') || 'http://129.146.45.248:4000';
-apiBaseUrl = apiUrlInput.value.replace(/\/$/, '');
 if (localStorage.getItem('resolution')) defaultResolution.value = localStorage.getItem('resolution');
 if (localStorage.getItem('bitrate')) defaultBitrate.value = localStorage.getItem('bitrate');
 if (localStorage.getItem('encoder')) defaultEncoder.value = localStorage.getItem('encoder');
