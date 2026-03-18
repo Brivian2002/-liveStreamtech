@@ -7,8 +7,12 @@ const { spawn } = require('child_process');
 const cors = require('cors');
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
+const Stripe = require('stripe');
 
-// Firebase Admin initialization
+// Initialize Stripe
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Firebase Admin
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
   ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
   : null;
@@ -35,6 +39,8 @@ pool.connect((err) => {
 // Middleware
 app.use(cors());
 app.use(express.json());
+// Stripe webhook needs raw body
+app.post('/stripe-webhook', express.raw({type: 'application/json'}), handleWebhook);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const uploadDir = 'uploads';
@@ -58,6 +64,9 @@ const createTables = async () => {
         uid TEXT PRIMARY KEY,
         email TEXT,
         display_name TEXT,
+        plan TEXT DEFAULT 'free',
+        stripe_customer_id TEXT,
+        stripe_subscription_id TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
       CREATE TABLE IF NOT EXISTS videos (
@@ -100,11 +109,13 @@ async function authenticate(req, res, next) {
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
     req.user = decoded; // contains uid, email, name
-    // Insert or update user in DB
+    // Insert or update user in DB (plan defaults to free)
     const client = await pool.connect();
     try {
       await client.query(
-        'INSERT INTO users (uid, email, display_name) VALUES ($1, $2, $3) ON CONFLICT (uid) DO UPDATE SET email = EXCLUDED.email, display_name = EXCLUDED.display_name',
+        `INSERT INTO users (uid, email, display_name) 
+         VALUES ($1, $2, $3) 
+         ON CONFLICT (uid) DO UPDATE SET email = EXCLUDED.email, display_name = EXCLUDED.display_name`,
         [decoded.uid, decoded.email, decoded.name || decoded.email]
       );
     } finally {
@@ -117,7 +128,89 @@ async function authenticate(req, res, next) {
   }
 }
 
+// ========== Helper: Get user plan ==========
+async function getUserPlan(uid) {
+  const client = await pool.connect();
+  try {
+    const res = await client.query('SELECT plan FROM users WHERE uid = $1', [uid]);
+    return res.rows[0]?.plan || 'free';
+  } finally {
+    client.release();
+  }
+}
+
+// ========== Stripe Webhook ==========
+async function handleWebhook(req, res) {
+  const sig = req.headers['stripe-signature'];
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.log(`Webhook signature verification failed.`, err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the checkout.session.completed event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const email = session.customer_details.email;
+    const customerId = session.customer;
+    const subscriptionId = session.subscription;
+    const plan = session.metadata?.plan || 'pro'; // default to pro
+
+    // Find user by email and update plan in DB
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `UPDATE users SET plan = $1, stripe_customer_id = $2, stripe_subscription_id = $3 WHERE email = $4`,
+        [plan, customerId, subscriptionId, email]
+      );
+      console.log(`User ${email} upgraded to ${plan}`);
+      // Optionally set custom claim in Firebase
+      await admin.auth().getUserByEmail(email)
+        .then(user => admin.auth().setCustomUserClaims(user.uid, { plan }))
+        .catch(err => console.error('Error setting custom claim:', err));
+    } catch (err) {
+      console.error('Error updating user plan:', err);
+    } finally {
+      client.release();
+    }
+  }
+
+  res.json({ received: true });
+}
+
 // ========== API Endpoints ==========
+
+// Get current user's plan
+app.get('/user-plan', authenticate, async (req, res) => {
+  const plan = await getUserPlan(req.user.uid);
+  res.json({ plan });
+});
+
+// Create Stripe Checkout Session
+app.post('/create-checkout-session', authenticate, async (req, res) => {
+  const { priceId, planName } = req.body; // priceId from Stripe Dashboard (e.g., price_xxx)
+  const userEmail = req.user.email;
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/pricing`,
+      customer_email: userEmail,
+      metadata: { plan: planName || 'pro' },
+    });
+    res.json({ sessionId: session.id, url: session.url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// (All other endpoints remain as before: upload, videos, start-stream, stop-stream, etc.)
 
 // Upload video
 app.post('/upload-video', authenticate, upload.single('video'), async (req, res) => {
@@ -196,8 +289,9 @@ app.delete('/videos/:id', authenticate, async (req, res) => {
   }
 });
 
-// Start stream (with TikTok, resolution, bitrate, encoder)
+// Start stream (with plan check – only pro can use multi-platform)
 app.post('/start-stream', authenticate, async (req, res) => {
+  const userPlan = await getUserPlan(req.user.uid);
   const {
     title, description,
     youtubeRtmpPrimary, youtubeRtmpBackup, youtubeKey,
@@ -206,6 +300,17 @@ app.post('/start-stream', authenticate, async (req, res) => {
     loopMode, autoReconnect, overlays,
     resolution, bitrate, encoder
   } = req.body;
+
+  // Count how many platforms are enabled
+  let platformsEnabled = 0;
+  if (youtubeKey && youtubeRtmpPrimary) platformsEnabled++;
+  if (facebookKey && facebookRtmp) platformsEnabled++;
+  if (tiktokKey && tiktokRtmp) platformsEnabled++;
+
+  // Free plan: only one platform allowed
+  if (userPlan === 'free' && platformsEnabled > 1) {
+    return res.status(403).json({ error: 'Free plan allows only one platform. Upgrade to Pro for multi-platform streaming.' });
+  }
 
   const clientDb = await pool.connect();
   let videoFile = null;
@@ -299,7 +404,7 @@ app.post('/start-stream', authenticate, async (req, res) => {
   res.json({ message: 'Stream started', count: processes.length });
 });
 
-// Stop stream
+// Stop stream (unchanged)
 app.post('/stop-stream', async (req, res) => {
   if (activeStream) {
     activeStream.processes.forEach(p => p.kill('SIGINT'));
@@ -346,7 +451,7 @@ app.get('/stream-history', authenticate, async (req, res) => {
   }
 });
 
-// Preview (authenticated – stream user's latest video)
+// Preview (authenticated)
 app.get('/preview', authenticate, async (req, res) => {
   const client = await pool.connect();
   try {
