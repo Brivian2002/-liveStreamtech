@@ -40,7 +40,7 @@ pool.connect((err) => {
 app.use(cors());
 app.use(express.json());
 // Stripe webhook needs raw body
-app.post('/stripe-webhook', express.raw({type: 'application/json'}), handleWebhook);
+app.post('/stripe-webhook', express.raw({ type: 'application/json' }), handleWebhook);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const uploadDir = 'uploads';
@@ -150,15 +150,13 @@ async function handleWebhook(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the checkout.session.completed event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const email = session.customer_details.email;
     const customerId = session.customer;
     const subscriptionId = session.subscription;
-    const plan = session.metadata?.plan || 'pro'; // default to pro
+    const plan = session.metadata?.plan || 'pro';
 
-    // Find user by email and update plan in DB
     const client = await pool.connect();
     try {
       await client.query(
@@ -190,7 +188,7 @@ app.get('/user-plan', authenticate, async (req, res) => {
 
 // Create Stripe Checkout Session
 app.post('/create-checkout-session', authenticate, async (req, res) => {
-  const { priceId, planName } = req.body; // priceId from Stripe Dashboard (e.g., price_xxx)
+  const { priceId, planName } = req.body;
   const userEmail = req.user.email;
 
   try {
@@ -209,8 +207,6 @@ app.post('/create-checkout-session', authenticate, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// (All other endpoints remain as before: upload, videos, start-stream, stop-stream, etc.)
 
 // Upload video
 app.post('/upload-video', authenticate, upload.single('video'), async (req, res) => {
@@ -289,7 +285,7 @@ app.delete('/videos/:id', authenticate, async (req, res) => {
   }
 });
 
-// Start stream (with plan check – only pro can use multi-platform)
+// Start stream (with plan check)
 app.post('/start-stream', authenticate, async (req, res) => {
   const userPlan = await getUserPlan(req.user.uid);
   const {
@@ -301,13 +297,12 @@ app.post('/start-stream', authenticate, async (req, res) => {
     resolution, bitrate, encoder
   } = req.body;
 
-  // Count how many platforms are enabled
+  // Count enabled platforms
   let platformsEnabled = 0;
   if (youtubeKey && youtubeRtmpPrimary) platformsEnabled++;
   if (facebookKey && facebookRtmp) platformsEnabled++;
   if (tiktokKey && tiktokRtmp) platformsEnabled++;
 
-  // Free plan: only one platform allowed
   if (userPlan === 'free' && platformsEnabled > 1) {
     return res.status(403).json({ error: 'Free plan allows only one platform. Upgrade to Pro for multi-platform streaming.' });
   }
@@ -326,7 +321,6 @@ app.post('/start-stream', authenticate, async (req, res) => {
 
   const processes = [];
 
-  // Parse settings
   const [width, height] = resolution ? resolution.split('x') : ['1280', '720'];
   const scaleFilter = `scale=${width}:${height}`;
   const videoBitrate = bitrate ? `${bitrate}k` : '1500k';
@@ -341,7 +335,6 @@ app.post('/start-stream', authenticate, async (req, res) => {
     '-f', 'flv'
   ];
 
-  // YouTube primary
   if (youtubeKey && youtubeRtmpPrimary) {
     const primaryUrl = `${youtubeRtmpPrimary.replace(/\/$/, '')}/${youtubeKey}`;
     const proc1 = spawn('ffmpeg', [...baseArgs, primaryUrl]);
@@ -349,7 +342,6 @@ app.post('/start-stream', authenticate, async (req, res) => {
     processes.push(proc1);
   }
 
-  // YouTube backup
   if (youtubeKey && youtubeRtmpBackup) {
     const backupUrl = `${youtubeRtmpBackup.replace(/\/$/, '')}/${youtubeKey}`;
     const proc2 = spawn('ffmpeg', [...baseArgs, backupUrl]);
@@ -357,7 +349,6 @@ app.post('/start-stream', authenticate, async (req, res) => {
     processes.push(proc2);
   }
 
-  // Facebook
   if (facebookKey && facebookRtmp) {
     const fbUrl = `${facebookRtmp.replace(/\/$/, '')}/${facebookKey}`;
     const procFb = spawn('ffmpeg', [...baseArgs, fbUrl]);
@@ -365,7 +356,6 @@ app.post('/start-stream', authenticate, async (req, res) => {
     processes.push(procFb);
   }
 
-  // TikTok
   if (tiktokKey && tiktokRtmp) {
     const ttUrl = `${tiktokRtmp.replace(/\/$/, '')}/${tiktokKey}`;
     const procTt = spawn('ffmpeg', [...baseArgs, ttUrl]);
@@ -388,7 +378,6 @@ app.post('/start-stream', authenticate, async (req, res) => {
     userUid: req.user.uid
   };
 
-  // Save to history
   const client = await pool.connect();
   try {
     await client.query(
@@ -404,7 +393,7 @@ app.post('/start-stream', authenticate, async (req, res) => {
   res.json({ message: 'Stream started', count: processes.length });
 });
 
-// Stop stream (unchanged)
+// Stop stream
 app.post('/stop-stream', async (req, res) => {
   if (activeStream) {
     activeStream.processes.forEach(p => p.kill('SIGINT'));
@@ -451,7 +440,7 @@ app.get('/stream-history', authenticate, async (req, res) => {
   }
 });
 
-// Preview (authenticated)
+// Preview
 app.get('/preview', authenticate, async (req, res) => {
   const client = await pool.connect();
   try {
